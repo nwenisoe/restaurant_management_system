@@ -68,6 +68,16 @@ export async function put(path, body){
   }
 }
 
+export async function patch(path, body){
+  try {
+    const res = await api.patch(path, body)
+    return res.data
+  } catch (error) {
+    console.error('PATCH Error:', error)
+    throw error
+  }
+}
+
 export async function del(path){
   try {
     const res = await api.delete(path)

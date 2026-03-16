@@ -184,6 +184,18 @@ func GenerateInvoiceFromOrder() gin.HandlerFunc {
 			return
 		}
 
+		// Parse request body for payment details
+		var request struct {
+			PaymentMethod string `json:"paymentMethod"`
+			PaymentStatus string `json:"paymentStatus"`
+		}
+
+		if err := c.BindJSON(&request); err != nil {
+			// If no body provided, use defaults
+			request.PaymentMethod = "CASH"
+			request.PaymentStatus = "PENDING"
+		}
+
 		// Get order details
 		var order models.Order
 		err := orderCollection.FindOne(ctx, bson.M{"orderId": orderID}).Decode(&order)
@@ -261,7 +273,6 @@ func GenerateInvoiceFromOrder() gin.HandlerFunc {
 		invoiceID := fmt.Sprintf("INV-%d-%s", time.Now().Unix(), orderID[:8])
 
 		// Set payment details
-		status := "PENDING"
 		paymentDueDate := time.Now().Add(24 * time.Hour) // Due in 24 hours
 
 		// Create invoice
@@ -274,7 +285,8 @@ func GenerateInvoiceFromOrder() gin.HandlerFunc {
 			OrderDate:      order.OrderDate,
 			FoodItems:      invoiceFoodItems,
 			TotalAmount:    totalAmount,
-			PaymentStatus:  &status,
+			PaymentMethod:  &request.PaymentMethod,
+			PaymentStatus:  &request.PaymentStatus,
 			PaymentDueDate: paymentDueDate,
 			CreatedAt:      time.Now(),
 			UpdatedAt:      time.Now(),
