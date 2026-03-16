@@ -1,6 +1,6 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { post } from '../api/client'
+import { post, get } from '../api/client'
 import { ArrowLeft, Save, Calendar, Table2, AlertCircle } from 'lucide-react'
 
 export default function CreateOrder() {
@@ -8,10 +8,30 @@ export default function CreateOrder() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [tables, setTables] = useState([])
+  const [tablesLoading, setTablesLoading] = useState(true)
   const [formData, setFormData] = useState({
     orderDate: '',
     tableId: ''
   })
+
+  // Fetch available tables
+  useEffect(() => {
+    const fetchTables = async () => {
+      try {
+        const response = await get('/api/v1/tables')
+        const tablesData = response.tables || response || []
+        setTables(tablesData)
+      } catch (err) {
+        console.error('Error fetching tables:', err)
+        setError('Failed to load tables. Please try again.')
+      } finally {
+        setTablesLoading(false)
+      }
+    }
+
+    fetchTables()
+  }, [])
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -28,13 +48,40 @@ export default function CreateOrder() {
     setSuccess('')
 
     try {
-      const payload = {
-        orderDate: formData.orderDate || new Date().toISOString(),
-        tableId: formData.tableId
+      // Always use current date to avoid datetime-local issues
+      const orderDate = new Date().toISOString()
+      
+      // Clean tableId - ensure it's a string and not empty
+      const tableId = formData.tableId?.trim()
+      
+      if (!tableId) {
+        throw new Error('Please select a table')
       }
-
+      
+      const payload = {
+        orderDate: orderDate,
+        tableId: tableId
+      }
+      
+      console.log('Creating order with payload:', JSON.stringify(payload, null, 2))
+      
       await post('/api/v1/orders', payload)
       setSuccess('Order created successfully!')
+      
+      // Auto-generate invoice for the order
+      try {
+        const orderResponse = await get('/api/v1/orders')
+        const orders = orderResponse.orders || orderResponse || []
+        const latestOrder = orders[orders.length - 1]
+        
+        if (latestOrder && latestOrder.orderId) {
+          await post(`/api/v1/orders/${latestOrder.orderId}/invoice`, {})
+          console.log('Invoice generated automatically for order:', latestOrder.orderId)
+        }
+      } catch (invoiceErr) {
+        console.error('Failed to generate invoice:', invoiceErr)
+        // Don't fail the order creation if invoice generation fails
+      }
       
       // Reset form after 2 seconds and navigate
       setTimeout(() => {
@@ -103,38 +150,36 @@ export default function CreateOrder() {
             )}
 
             <div>
-              <label htmlFor="orderDate" className="block text-sm font-medium text-gray-700 mb-2">
-                <Calendar className="h-4 w-4 inline mr-1" />
-                Order Date & Time
-              </label>
-              <input
-                type="datetime-local"
-                id="orderDate"
-                name="orderDate"
-                className="input"
-                value={formData.orderDate}
-                onChange={handleChange}
-              />
-              <p className="mt-1 text-sm text-gray-500">
-                Leave empty to use current date and time
-              </p>
-            </div>
-
-            <div>
               <label htmlFor="tableId" className="block text-sm font-medium text-gray-700 mb-2">
                 <Table2 className="h-4 w-4 inline mr-1" />
-                Table ID
+                Table
               </label>
-              <input
-                type="text"
-                id="tableId"
-                name="tableId"
-                required
-                className="input"
-                placeholder="e.g., table_123"
-                value={formData.tableId}
-                onChange={handleChange}
-              />
+              {tablesLoading ? (
+                <div className="input bg-gray-100 text-gray-500">Loading tables...</div>
+              ) : tables.length === 0 ? (
+                <div className="input bg-red-50 text-red-600">
+                  No tables found. <a href="/create/table" className="underline">Create a table first</a>
+                </div>
+              ) : (
+                <select
+                  id="tableId"
+                  name="tableId"
+                  required
+                  className="input"
+                  value={formData.tableId}
+                  onChange={handleChange}
+                >
+                  <option value="">Select a table...</option>
+                  {tables.map((table) => (
+                    <option key={table.id || table.tableId} value={table.tableId}>
+                      Table {table.tableNumber} ({table.numberOfGuests} guests)
+                    </option>
+                  ))}
+                </select>
+              )}
+              <p className="mt-1 text-sm text-gray-500">
+                Order will be created with current date and time
+              </p>
             </div>
 
             <div className="flex gap-4">

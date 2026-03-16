@@ -106,7 +106,7 @@ func GetAllOrderItems() gin.HandlerFunc {
 		}
 
 		if len(allOrderItems) == 0 {
-			c.JSON(http.StatusNotFound, gin.H{"message": "No order items found"})
+			c.JSON(http.StatusOK, gin.H{"totalCount": 0, "orderItems": []models.OrderItem{}})
 			return
 		}
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { get } from '../api/client'
-import { Utensils, ShoppingCart, Table, Receipt, TrendingUp, Users } from 'lucide-react'
+import { Utensils, ShoppingCart, Table, Receipt, TrendingUp, Users, FileText, BarChart3 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 
 export default function Dashboard() {
@@ -9,16 +10,20 @@ export default function Dashboard() {
     foods: 0,
     tables: 0,
     orders: 0,
-    invoices: 0
+    invoices: 0,
+    vouchers: 0,
+    todaySales: 0
   })
   const [loading, setLoading] = useState(true)
   const [chartData, setChartData] = useState([])
 
   const statCards = [
-    { name: 'Menu Items', value: stats.menus, icon: Utensils, color: 'bg-blue-500' },
-    { name: 'Foods', value: stats.foods, icon: ShoppingCart, color: 'bg-green-500' },
-    { name: 'Tables', value: stats.tables, icon: Table, color: 'bg-yellow-500' },
-    { name: 'Orders', value: stats.orders, icon: Receipt, color: 'bg-purple-500' },
+    { name: 'Menu Items', value: stats.menus, icon: Utensils, color: 'bg-blue-500', link: '/menus' },
+    { name: 'Foods', value: stats.foods, icon: ShoppingCart, color: 'bg-green-500', link: '/foods' },
+    { name: 'Tables', value: stats.tables, icon: Table, color: 'bg-yellow-500', link: '/tables' },
+    { name: 'Orders', value: stats.orders, icon: Receipt, color: 'bg-purple-500', link: '/orders' },
+    { name: 'Invoices', value: stats.invoices, icon: FileText, color: 'bg-indigo-500', link: '/invoices' },
+    { name: 'Today Sales', value: `$${stats.todaySales.toFixed(2)}`, icon: TrendingUp, color: 'bg-green-600', link: '/sales-reports' },
   ]
 
   const pieData = [
@@ -26,24 +31,37 @@ export default function Dashboard() {
     { name: 'Foods', value: stats.foods, color: '#10b981' },
     { name: 'Tables', value: stats.tables, color: '#f59e0b' },
     { name: 'Orders', value: stats.orders, color: '#8b5cf6' },
+    { name: 'Invoices', value: stats.invoices, color: '#6366f1' },
   ]
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const [menusRes, foodsRes, tablesRes, ordersRes] = await Promise.all([
+        const [menusRes, foodsRes, tablesRes, ordersRes, invoicesRes] = await Promise.all([
           get('/api/v1/menus'),
           get('/api/v1/foods'),
           get('/api/v1/tables'),
-          get('/api/v1/orders')
+          get('/api/v1/orders'),
+          get('/api/v1/invoices')
         ])
+
+        // Get today's sales
+        const today = new Date().toISOString().split('T')[0]
+        let todaySales = 0
+        try {
+          const salesRes = await get(`/api/v1/sales-reports/daily?date=${today}`)
+          todaySales = salesRes.totalSales || 0
+        } catch (err) {
+          // No sales report for today, that's okay
+        }
 
         setStats({
           menus: menusRes.totalCount || menusRes.length || 0,
           foods: foodsRes.totalCount || foodsRes.length || 0,
           tables: tablesRes.totalCount || tablesRes.length || 0,
           orders: ordersRes.totalCount || ordersRes.length || 0,
-          invoices: 0
+          invoices: invoicesRes.totalCount || invoicesRes.length || 0,
+          todaySales: todaySales
         })
 
         setChartData([
@@ -85,7 +103,7 @@ export default function Dashboard() {
         {statCards.map((stat) => {
           const Icon = stat.icon
           return (
-            <div key={stat.name} className="card">
+            <Link key={stat.name} to={stat.link} className="card hover:shadow-lg transition-shadow">
               <div className="flex items-center">
                 <div className={`p-3 rounded-lg ${stat.color}`}>
                   <Icon className="h-6 w-6 text-white" />
@@ -95,7 +113,7 @@ export default function Dashboard() {
                   <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
                 </div>
               </div>
-            </div>
+            </Link>
           )
         })}
       </div>

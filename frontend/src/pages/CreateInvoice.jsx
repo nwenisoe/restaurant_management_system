@@ -1,6 +1,6 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { post } from '../api/client'
+import { post, get } from '../api/client'
 import { ArrowLeft, Save, CreditCard, Calendar, Receipt, AlertCircle } from 'lucide-react'
 
 export default function CreateInvoice() {
@@ -8,12 +8,32 @@ export default function CreateInvoice() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [orders, setOrders] = useState([])
+  const [ordersLoading, setOrdersLoading] = useState(true)
   const [formData, setFormData] = useState({
     orderId: '',
     paymentMethod: 'CASH',
     paymentStatus: 'PENDING',
     paymentDueDate: ''
   })
+
+  // Fetch available orders
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        const response = await get('/api/v1/orders')
+        const ordersData = response.orders || response || []
+        setOrders(ordersData)
+      } catch (err) {
+        console.error('Error fetching orders:', err)
+        setError('Failed to load orders. Please try again.')
+      } finally {
+        setOrdersLoading(false)
+      }
+    }
+
+    fetchOrders()
+  }, [])
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -108,18 +128,32 @@ export default function CreateInvoice() {
 
             <div>
               <label htmlFor="orderId" className="block text-sm font-medium text-gray-700 mb-2">
-                Order ID
+                <Receipt className="h-4 w-4 inline mr-1" />
+                Order
               </label>
-              <input
-                type="text"
-                id="orderId"
-                name="orderId"
-                required
-                className="input"
-                placeholder="e.g., order_123"
-                value={formData.orderId}
-                onChange={handleChange}
-              />
+              {ordersLoading ? (
+                <div className="input bg-gray-100 text-gray-500">Loading orders...</div>
+              ) : orders.length === 0 ? (
+                <div className="input bg-red-50 text-red-600">
+                  No orders found. <a href="/create/order" className="underline">Create an order first</a>
+                </div>
+              ) : (
+                <select
+                  id="orderId"
+                  name="orderId"
+                  required
+                  className="input"
+                  value={formData.orderId}
+                  onChange={handleChange}
+                >
+                  <option value="">Select an order...</option>
+                  {orders.map((order) => (
+                    <option key={order.id || order.orderId} value={order.orderId}>
+                      Order {order.orderId} ({new Date(order.orderDate).toLocaleDateString()})
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
 
             <div>

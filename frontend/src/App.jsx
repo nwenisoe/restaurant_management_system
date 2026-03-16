@@ -16,6 +16,7 @@ import CreateOrder from './pages/CreateOrder'
 import CreateOrderItem from './pages/CreateOrderItem'
 import CreateInvoice from './pages/CreateInvoice'
 import Dashboard from './pages/Dashboard'
+import SalesReports from './pages/SalesReports'
 
 function AppRoutes() {
   const { isAuthenticated } = useAuth()
@@ -82,6 +83,11 @@ function AppRoutes() {
       <Route path="/orders" element={
         isAuthenticated ? 
           <ProtectedRoute><Orders /></ProtectedRoute> : 
+          <Navigate to="/login" replace />
+      } />
+      <Route path="/sales-reports" element={
+        isAuthenticated ? 
+          <ProtectedRoute><SalesReports /></ProtectedRoute> : 
           <Navigate to="/login" replace />
       } />
       <Route path="*" element={<Navigate to={isAuthenticated ? "/" : "/login"} replace />} />

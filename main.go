@@ -9,15 +9,15 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 	"github.com/nwenisoe/menu-management/config"
 	"github.com/nwenisoe/menu-management/middlewares"
 	"github.com/nwenisoe/menu-management/routes"
 	"github.com/nwenisoe/menu-management/utils"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"github.com/joho/godotenv"
 )
 
 func main() {
@@ -26,7 +26,7 @@ func main() {
 	if err != nil {
 		fmt.Printf("Warning: Could not load .envs/.mongo.env file: %v\n", err)
 	}
-	
+
 	err = godotenv.Load(".envs/.server.env")
 	if err != nil {
 		fmt.Printf("Warning: Could not load .envs/.server.env file: %v\n", err)
@@ -68,6 +68,7 @@ func main() {
 	routes.OrderRoutes(router)
 	routes.OrderItemRoutes(router)
 	routes.InvoiceRoutes(router)
+	routes.SalesReportRoutes(router)
 
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", port),

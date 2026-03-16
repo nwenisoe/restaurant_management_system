@@ -7,21 +7,28 @@ export default function Orders() {
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [tokenStatus, setTokenStatus] = useState('')
 
   useEffect(() => {
+    // Check token status
+    const token = localStorage.getItem('token')
+    setTokenStatus(token ? `Token exists (${token.substring(0, 20)}...)` : 'No token found')
+
     const fetchOrders = async () => {
       try {
-        const response = await get('/api/v1/orders')
-        console.log('Orders response received:', response) // Debug log
+        console.log('Fetching orders...')
+        const data = await get('/api/v1/orders')
+        console.log('Orders response received:', data) // Debug log
         
         // Backend returns { totalCount, orders }
-        const ordersData = response.orders || response || []
+        const ordersData = data.orders || data || []
         console.log('Orders data extracted:', ordersData) // Debug log
+        console.log('Orders count:', ordersData.length)
         
         setOrders(ordersData)
       } catch (err) {
         console.error('Error fetching orders:', err)
-        setError('Failed to load orders. Please try again.')
+        setError(`Failed to load orders: ${err.response?.data?.error || err.message}`)
       } finally {
         setLoading(false)
       }
@@ -84,6 +91,7 @@ export default function Orders() {
         <div className="card">
           {/* Debug Info */}
           <div className="mb-4 p-4 bg-gray-100 rounded">
+            <p className="text-sm text-gray-600">Debug: Token Status = {tokenStatus}</p>
             <p className="text-sm text-gray-600">Debug: Orders count = {orders.length}</p>
             <p className="text-sm text-gray-600">Debug: Error = {error || 'None'}</p>
             {orders.length > 0 && (

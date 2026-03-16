@@ -1,6 +1,6 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { post } from '../api/client'
+import { post, get } from '../api/client'
 import { ArrowLeft, Save, DollarSign, Image, Utensils, AlertCircle } from 'lucide-react'
 
 export default function CreateFood() {
@@ -8,12 +8,32 @@ export default function CreateFood() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [menus, setMenus] = useState([])
+  const [menusLoading, setMenusLoading] = useState(true)
   const [formData, setFormData] = useState({
     name: '',
     price: '',
     foodImage: '',
     menuId: ''
   })
+
+  // Fetch available menus
+  useEffect(() => {
+    const fetchMenus = async () => {
+      try {
+        const response = await get('/api/v1/menus')
+        const menusData = response.menus || response || []
+        setMenus(menusData)
+      } catch (err) {
+        console.error('Error fetching menus:', err)
+        setError('Failed to load menus. Please try again.')
+      } finally {
+        setMenusLoading(false)
+      }
+    }
+
+    fetchMenus()
+  }, [])
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -161,18 +181,32 @@ export default function CreateFood() {
 
             <div>
               <label htmlFor="menuId" className="block text-sm font-medium text-gray-700 mb-2">
-                Menu ID
+                <Utensils className="h-4 w-4 inline mr-1" />
+                Menu
               </label>
-              <input
-                type="text"
-                id="menuId"
-                name="menuId"
-                required
-                className="input"
-                placeholder="Menu identifier"
-                value={formData.menuId}
-                onChange={handleChange}
-              />
+              {menusLoading ? (
+                <div className="input bg-gray-100 text-gray-500">Loading menus...</div>
+              ) : menus.length === 0 ? (
+                <div className="input bg-red-50 text-red-600">
+                  No menus found. <a href="/create/menu" className="underline">Create a menu first</a>
+                </div>
+              ) : (
+                <select
+                  id="menuId"
+                  name="menuId"
+                  required
+                  className="input"
+                  value={formData.menuId}
+                  onChange={handleChange}
+                >
+                  <option value="">Select a menu...</option>
+                  {menus.map((menu) => (
+                    <option key={menu.id || menu.menuId} value={menu.menuId}>
+                      {menu.name} ({menu.category})
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
 
             <div className="flex gap-4">
