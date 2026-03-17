@@ -388,16 +388,6 @@ export default function Dashboard() {
           )}
         </div>
 
-      {/* Quick Actions */}
-      <div className="card">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <button className="btn btn-primary">New Order</button>
-          <button className="btn btn-secondary">Add Menu Item</button>
-          <button className="btn btn-secondary">Reserve Table</button>
-          <button className="btn btn-secondary">Generate Invoice</button>
-        </div>
       </div>
-    </div>
   )
 }

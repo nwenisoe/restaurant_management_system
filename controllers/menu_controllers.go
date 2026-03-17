@@ -165,3 +165,31 @@ func UpdateMenuByID() gin.HandlerFunc {
 		c.JSON(http.StatusOK, gin.H{"message": "Menu updated successfully", "menu": updatedMenu})
 	}
 }
+
+func DeleteMenuByID() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		menuId := c.Param("menuId")
+		if menuId == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "menuId parameter is required"})
+			return
+		}
+
+		filter := bson.M{"menuId": menuId}
+
+		result, err := menuCollection.DeleteOne(ctx, filter)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete menu item"})
+			return
+		}
+
+		if result.DeletedCount == 0 {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Menu item not found"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Menu item deleted successfully"})
+	}
+}

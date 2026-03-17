@@ -12,6 +12,7 @@ import Tables from './pages/Tables'
 import Invoices from './pages/Invoices'
 import Signup from './pages/Signup'
 import CreateMenu from './pages/CreateMenu'
+import EditMenu from './pages/EditMenu'
 import CreateFood from './pages/CreateFood'
 import CreateTable from './pages/CreateTable'
 import CreateOrder from './pages/CreateOrder'
@@ -52,6 +53,11 @@ function AppRoutes() {
       <Route path="/create/menu" element={
         isAuthenticated ? 
           <ProtectedRoute><CreateMenu /></ProtectedRoute> : 
+          <Navigate to="/login" replace />
+      } />
+      <Route path="/edit/menu/:menuId" element={
+        isAuthenticated ? 
+          <ProtectedRoute><EditMenu /></ProtectedRoute> : 
           <Navigate to="/login" replace />
       } />
       <Route path="/create/food" element={

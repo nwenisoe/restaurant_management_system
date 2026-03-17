@@ -166,12 +166,12 @@ export default function SalesReports() {
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                    <div className="bg-blue-50 rounded-lg p-4">
+                    <div className="bg-emerald-50 rounded-lg p-4">
                       <div className="flex items-center">
-                        <DollarSign className="h-8 w-8 text-blue-600 mr-3" />
+                        <DollarSign className="h-8 w-8 text-emerald-600 mr-3" />
                         <div>
-                          <p className="text-sm text-blue-600 font-medium">Total Sales</p>
-                          <p className="text-2xl font-bold text-blue-900">${report.totalSales.toFixed(2)}</p>
+                          <p className="text-sm text-emerald-600 font-medium">Total Sales</p>
+                          <p className="text-2xl font-bold text-emerald-900">${report.totalSales.toFixed(2)}</p>
                         </div>
                       </div>
                     </div>

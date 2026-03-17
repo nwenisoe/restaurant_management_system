@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { post, get } from '../api/client'
-import { ArrowLeft, Save, DollarSign, Image, Utensils, AlertCircle } from 'lucide-react'
+import { ArrowLeft, Save, DollarSign, Image, Utensils, AlertCircle, Upload, X, Camera } from 'lucide-react'
 
 export default function CreateFood() {
   const navigate = useNavigate()
@@ -10,12 +10,32 @@ export default function CreateFood() {
   const [success, setSuccess] = useState('')
   const [menus, setMenus] = useState([])
   const [menusLoading, setMenusLoading] = useState(true)
+  const [dragActive, setDragActive] = useState(false)
+  const [imagePreview, setImagePreview] = useState('')
+  const [imageFile, setImageFile] = useState(null)
+  const [imageUploadProgress, setImageUploadProgress] = useState(0)
+  const fileInputRef = useRef(null)
+  
   const [formData, setFormData] = useState({
     name: '',
     price: '',
     foodImage: '',
-    menuId: ''
+    menuId: '',
+    category: ''
   })
+
+  const categories = [
+    'Appetizers',
+    'Main Course',
+    'Desserts',
+    'Beverages',
+    'Soups',
+    'Salads',
+    'Specials',
+    'Breakfast',
+    'Lunch',
+    'Dinner'
+  ]
 
   // Fetch available menus
   useEffect(() => {
@@ -43,6 +63,78 @@ export default function CreateFood() {
     }))
   }
 
+  const handleDrag = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true)
+    } else if (e.type === "dragleave") {
+      setDragActive(false)
+    }
+  }
+
+  const handleDrop = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragActive(false)
+    
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFile(e.dataTransfer.files[0])
+    }
+  }
+
+  const handleFileSelect = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      handleFile(e.target.files[0])
+    }
+  }
+
+  const handleFile = (file) => {
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      setError('Please select an image file (JPG, PNG, GIF, etc.)')
+      return
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Image size should be less than 5MB')
+      return
+    }
+
+    setImageFile(file)
+    
+    // Create preview
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setImagePreview(reader.result)
+      // For now, we'll store the preview as base64 in the form
+      // In production, you'd upload to a server and get a URL
+      setFormData(prev => ({
+        ...prev,
+        foodImage: reader.result
+      }))
+    }
+    reader.readAsDataURL(file)
+    setError('')
+  }
+
+  const removeImage = () => {
+    setImageFile(null)
+    setImagePreview('')
+    setFormData(prev => ({
+      ...prev,
+      foodImage: ''
+    }))
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  const triggerFileSelect = () => {
+    fileInputRef.current?.click()
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
@@ -64,9 +156,12 @@ export default function CreateFood() {
           name: '',
           price: '',
           foodImage: '',
-          menuId: ''
+          menuId: '',
+          category: ''
         })
-        navigate('/menu')
+        setImageFile(null)
+        setImagePreview('')
+        navigate('/foods')
       }, 2000)
       
     } catch (err) {
@@ -78,19 +173,19 @@ export default function CreateFood() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="mb-8">
           <button
-            onClick={() => navigate('/menu')}
+            onClick={() => navigate('/foods')}
             className="flex items-center text-gray-600 hover:text-gray-900 mb-4 transition-colors"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Menu
+            Back to Foods
           </button>
           <div className="text-center">
-            <div className="mx-auto h-16 w-16 bg-primary-600 rounded-full flex items-center justify-center mb-4">
+            <div className="mx-auto h-16 w-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center mb-4">
               <Utensils className="h-8 w-8 text-white" />
             </div>
             <h1 className="text-3xl font-bold text-gray-900">
@@ -103,8 +198,8 @@ export default function CreateFood() {
         </div>
 
         {/* Create Form */}
-        <div className="card">
-          <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+          <form onSubmit={handleSubmit} className="p-8 space-y-6">
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-md p-4">
                 <div className="flex">
@@ -126,6 +221,83 @@ export default function CreateFood() {
               </div>
             )}
 
+            {/* Image Upload Section */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <Image className="h-4 w-4 inline mr-1" />
+                Food Image
+              </label>
+              
+              {!imagePreview ? (
+                <div
+                  className={`relative border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
+                    dragActive 
+                      ? 'border-green-400 bg-green-50' 
+                      : 'border-gray-300 hover:border-gray-400 bg-gray-50'
+                  }`}
+                  onDragEnter={handleDrag}
+                  onDragLeave={handleDrag}
+                  onDragOver={handleDrag}
+                  onDrop={handleDrop}
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
+                  
+                  <div className="space-y-4">
+                    <div className="mx-auto h-12 w-12 bg-gray-200 rounded-full flex items-center justify-center">
+                      <Upload className="h-6 w-6 text-gray-400" />
+                    </div>
+                    <div>
+                      <p className="text-lg font-medium text-gray-700">Drop your image here</p>
+                      <p className="text-sm text-gray-500">or</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={triggerFileSelect}
+                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 mx-auto"
+                    >
+                      <Camera className="h-4 w-4" />
+                      Browse Files
+                    </button>
+                    <p className="text-xs text-gray-400">
+                      Supports: JPG, PNG, GIF, WebP (Max 5MB)
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="relative">
+                  <div className="relative rounded-xl overflow-hidden bg-gray-100">
+                    <img
+                      src={imagePreview}
+                      alt="Food preview"
+                      className="w-full h-64 object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={removeImage}
+                      className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                  <div className="mt-2 text-center">
+                    <button
+                      type="button"
+                      onClick={triggerFileSelect}
+                      className="text-sm text-green-600 hover:text-green-700 font-medium"
+                    >
+                      Change Image
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div>
               <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
                 <Utensils className="h-4 w-4 inline mr-1" />
@@ -136,11 +308,31 @@ export default function CreateFood() {
                 id="name"
                 name="name"
                 required
-                className="input"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                 placeholder="e.g., Grilled Salmon"
                 value={formData.name}
                 onChange={handleChange}
               />
+            </div>
+
+            <div>
+              <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-2">
+                <Utensils className="h-4 w-4 inline mr-1" />
+                Category
+              </label>
+              <select
+                id="category"
+                name="category"
+                required
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                value={formData.category}
+                onChange={handleChange}
+              >
+                <option value="">Select a category</option>
+                {categories.map(category => (
+                  <option key={category} value={category}>{category}</option>
+                ))}
+              </select>
             </div>
 
             <div>
@@ -155,26 +347,9 @@ export default function CreateFood() {
                 step="0.01"
                 min="0"
                 required
-                className="input"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                 placeholder="29.99"
                 value={formData.price}
-                onChange={handleChange}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="foodImage" className="block text-sm font-medium text-gray-700 mb-2">
-                <Image className="h-4 w-4 inline mr-1" />
-                Image URL
-              </label>
-              <input
-                type="url"
-                id="foodImage"
-                name="foodImage"
-                required
-                className="input"
-                placeholder="https://example.com/food-image.jpg"
-                value={formData.foodImage}
                 onChange={handleChange}
               />
             </div>
@@ -185,9 +360,11 @@ export default function CreateFood() {
                 Menu
               </label>
               {menusLoading ? (
-                <div className="input bg-gray-100 text-gray-500">Loading menus...</div>
+                <div className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-100 text-gray-500">
+                  Loading menus...
+                </div>
               ) : menus.length === 0 ? (
-                <div className="input bg-red-50 text-red-600">
+                <div className="w-full px-4 py-3 border border-red-300 rounded-lg bg-red-50 text-red-600">
                   No menus found. <a href="/create/menu" className="underline">Create a menu first</a>
                 </div>
               ) : (
@@ -195,7 +372,7 @@ export default function CreateFood() {
                   id="menuId"
                   name="menuId"
                   required
-                  className="input"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                   value={formData.menuId}
                   onChange={handleChange}
                 >
@@ -213,7 +390,7 @@ export default function CreateFood() {
               <button
                 type="submit"
                 disabled={loading}
-                className="btn btn-primary flex-1 flex items-center justify-center"
+                className="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center font-medium disabled:opacity-50"
               >
                 {loading ? (
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
@@ -224,8 +401,8 @@ export default function CreateFood() {
               </button>
               <button
                 type="button"
-                onClick={() => navigate('/menu')}
-                className="btn btn-secondary"
+                onClick={() => navigate('/foods')}
+                className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
               >
                 Cancel
               </button>

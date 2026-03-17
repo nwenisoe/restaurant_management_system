@@ -136,8 +136,8 @@ export default function SalesDetails() {
 
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
-              <div className="p-3 bg-blue-100 rounded-full">
-                <Package className="h-6 w-6 text-blue-600" />
+              <div className="p-3 bg-emerald-100 rounded-full">
+                <Package className="h-6 w-6 text-emerald-600" />
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Total Items Sold</p>
@@ -275,7 +275,7 @@ export default function SalesDetails() {
               <div className="bg-white rounded-lg shadow p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">🥈 Second Place</h3>
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-blue-600 mb-2">{salesData[1].foodName}</p>
+                  <p className="text-2xl font-bold text-emerald-600 mb-2">{salesData[1].foodName}</p>
                   <p className="text-gray-600">
                     {salesData[1].quantity} units sold
                   </p>

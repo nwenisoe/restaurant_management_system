@@ -15,6 +15,7 @@ func MenuRoutes(router *gin.Engine) {
 			menus.GET("", controllers.GetAllMenus())
 			menus.GET("/:menuId", controllers.GetMenuByID())
 			menus.PATCH("/:menuId", controllers.UpdateMenuByID())
+			menus.DELETE("/:menuId", controllers.DeleteMenuByID())
 		}
 	}
 }

@@ -218,8 +218,8 @@ export default function SummaryReport() {
 
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
-              <div className="p-3 bg-blue-100 rounded-full">
-                <BarChart3 className="h-6 w-6 text-blue-600" />
+              <div className="p-3 bg-emerald-100 rounded-full">
+                <BarChart3 className="h-6 w-6 text-emerald-600" />
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Total Orders</p>
@@ -349,8 +349,8 @@ export default function SummaryReport() {
                 </div>
                 <div className="text-sm text-gray-600">Best Day</div>
               </div>
-              <div className="text-center p-3 bg-blue-50 rounded-lg">
-                <div className="text-2xl font-bold text-blue-600">
+              <div className="text-center p-3 bg-emerald-50 rounded-lg">
+                <div className="text-2xl font-bold text-emerald-600">
                   {formatCurrency(totalMonthlyAmount / monthlyData.length)}
                 </div>
                 <div className="text-sm text-gray-600">Daily Average</div>
