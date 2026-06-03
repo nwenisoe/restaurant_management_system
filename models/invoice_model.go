@@ -16,7 +16,7 @@ type Invoice struct {
 	FoodItems      []InvoiceFoodItem  `json:"foodItems" bson:"foodItems"`
 	TotalAmount    float64            `json:"totalAmount" bson:"totalAmount"`
 	PaymentMethod  *string            `json:"paymentMethod" bson:"paymentMethod" validate:"eq=CARD|eq=CASH|eq=ONLINE"`
-	PaymentStatus  *string            `json:"paymentStatus" bson:"paymentStatus" validate:"required,eq=PENDING|eq=PAID"`
+	PaymentStatus  *string            `json:"paymentStatus" bson:"paymentStatus" validate:"required,eq=PENDING|eq=PAID|eq=CANCELLED"`
 	PaymentDueDate time.Time          `json:"paymentDueDate" bson:"paymentDueDate" validate:"required"`
 	CreatedAt      time.Time          `json:"createdAt" bson:"createdAt"`
 	UpdatedAt      time.Time          `json:"updatedAt" bson:"updatedAt"`

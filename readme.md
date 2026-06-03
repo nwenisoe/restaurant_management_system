@@ -382,8 +382,121 @@ If this project helped you, please give it a ⭐ on GitHub!
 -   GET `/api/v1/invoices` - Get all the invoices
 -   GET `/api/v1/invoices/{invoiceId}` - Get invoice by id
 -   PATCH `/api/v1/invoices/{invoiceId}` - Update the invoice by id
+-   DELETE `/api/v1/invoices/{invoiceId}` - Delete invoice by id
 
 ## Database Architecture Diagram
 
 <img src="./database-architecture.svg" alt="Database Architecture Diagram" style="width:100%;"/>
 "# restaurant_management_system" 
+
+## 2026-06-01 Review and Fix Notes
+
+### Backend
+- Fixed order table lookup to query by the table ID string instead of the pointer value and avoid nil pointer panics on partial updates.
+- Updated order item quantity validation from portion-size values to numeric quantities so cart totals, invoices, and sales reports use the same quantity model.
+- Added table existence validation when creating order items through the checkout flow.
+- Returned `orderId` from `POST /api/v1/orderItems` so the frontend can generate invoices for the exact order that was just created.
+- Fixed order item update persistence for `unitPrice` by using the correct BSON field name.
+- Hardened invoice generation for shorter order IDs and nullable table numbers.
+- Allowed `CANCELLED` as a valid invoice payment status to match the frontend status controls.
+- Added `POST /api/v1/sales-reports/daily` compatibility and let the daily report controller accept both query and route date values.
+
+### Frontend
+- Fixed checkout to use the `orderId` returned by order item creation instead of fetching the latest order, preventing invoices from attaching to the wrong order.
+- Fixed manual order creation to generate invoices from the newly created order response.
+- Fixed sales report generation to call the backend daily report endpoint with query parameters.
+- Fixed the manual order item page runtime icon import and changed its quantity selector to numeric values.
+- Cleaned the checkout success message and displayed the actual generated invoice ID returned by the backend.
+
+### Verification
+- `go test ./...` passes.
+- `npm run build` passes.
+
+## Demo Data Reset Script
+
+Use this script when you want to clear old demo records and insert a fresh demo dataset for presentation.
+
+The script clears these collections only:
+
+- `sales_report`
+- `invoice`
+- `orderItem`
+- `order`
+- `food`
+- `table`
+- `menu`
+
+It does not delete users/accounts.
+
+Run MongoDB first, then run:
+
+```bash
+MONGODB_URI="mongodb://root:example@localhost:27017/restaurant?authSource=admin" go run scripts/reset_demo/main.go
+```
+
+Fresh demo data includes:
+
+- 5 menus
+- 8 foods with image URLs
+- 6 tables
+- 5 orders
+- 5 invoices
+- 1 daily sales report
+
+## 2026-06-03 Order Flow Review Fixes
+
+### Frontend
+- Removed the confusing manual order flow from visible navigation by redirecting `/create/order` and `/create/orderitem` to the full `Order Food` workflow.
+- Simplified the Orders page so it now focuses on order history and invoice navigation.
+- Removed the unnecessary order status display and manual `Add Items` action from order cards.
+- Added table lookup on the Orders page so users see readable table numbers instead of raw table IDs.
+- Kept search and date filtering on Orders, with newest orders shown first.
+- Updated invoice empty states and recent invoice copy to say `Order Food` instead of manual order creation.
+
+### Backend
+- Sorted `GET /api/v1/orders` by newest order date first.
+- Sorted `GET /api/v1/invoices` by newest invoice date first.
+
+### Verification
+- `go test ./...` passes.
+- `npm run build` passes.
+
+## 2026-06-01 Catalog UI and Demo Data
+
+### Frontend
+- Redesigned the `Menus`, `Foods`, and `Tables` pages with cleaner cards, better spacing, and image-forward layouts.
+- Menu cards now use category photos for quick visual scanning.
+- Food cards now render the `foodImage` URL from the database with a fallback image.
+- Table cards now show a simple dining-room visual, seating capacity, zone, and availability status.
+
+### Demo Data
+- Added `scripts/seed_demo.go` to seed demo menus, foods, and tables into MongoDB.
+- The seeder is idempotent and updates existing demo records instead of duplicating them.
+- Run locally with:
+
+```bash
+MONGODB_URI="mongodb://root:example@localhost:27017/restaurant?authSource=admin" go run scripts/seed_demo.go
+```
+
+### Verification
+- Seeded demo data: 5 menus, 6 foods, 6 tables.
+- `npm run build` passes.
+
+## 2026-06-03 Architecture Review Fixes
+
+### Backend
+- Removed duplicate debug invoice handlers from `main.go` so invoice operations are owned by the invoice routes and controller.
+- Removed temporary CORS/test invoice routes because global CORS middleware already handles preflight requests.
+- Added `DELETE /api/v1/invoices/{invoiceId}` for the invoice page delete action.
+- Improved invoice patch behavior so payment method, payment status, food items, and total amount are updated through one canonical endpoint.
+- Added validation for invoice payment method, payment status, negative totals, and empty patch requests.
+
+### Frontend
+- Replaced all `/api/v1/public-invoices` calls with `/api/v1/invoices`.
+- Removed request/response debug logging from the API client.
+- Removed noisy success/debug logs from order, menu checkout, and sales report pages.
+- Kept error logging in place so real failures are still visible during support and testing.
+
+### Verification
+- `go test ./...` passes.
+- `npm run build` passes.

@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { post } from '../api/client'
-import { ArrowLeft, Save, DollarSign, Utensils, ShoppingCart, AlertCircle } from 'lucide-react'
+import { ArrowLeft, Save, Utensils, ShoppingCart, AlertCircle, Table2 } from 'lucide-react'
 
 export default function CreateOrderItem() {
   const navigate = useNavigate()
@@ -61,12 +61,12 @@ export default function CreateOrderItem() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="page-surface">
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="mb-8">
           <button
-            onClick={() => navigate('/dashboard')}
+            onClick={() => navigate('/')}
             className="flex items-center text-gray-600 hover:text-gray-900 mb-4 transition-colors"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -111,7 +111,7 @@ export default function CreateOrderItem() {
 
             <div>
               <label htmlFor="tableId" className="block text-sm font-medium text-gray-700 mb-2">
-                <Table className="h-4 w-4 inline mr-1" />
+                <Table2 className="h-4 w-4 inline mr-1" />
                 Table ID
               </label>
               <input
@@ -156,9 +156,11 @@ export default function CreateOrderItem() {
                 value={formData.quantity}
                 onChange={handleChange}
               >
-                <option value="S">Small (S)</option>
-                <option value="M">Medium (M)</option>
-                <option value="L">Large (L)</option>
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
               </select>
             </div>
 

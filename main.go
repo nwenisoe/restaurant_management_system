@@ -47,19 +47,23 @@ func main() {
 
 	router.Use(middlewares.ZapLoggerMiddleware(log))
 	router.Use(gin.Recovery())
-	// Allow requests from frontend dev server (Vite) and other origins as needed
+
+	// Apply CORS middleware to all routes with more permissive settings
 	router.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000", "http://127.0.0.1:3000"},
+		AllowAllOrigins:  true,
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "X-Requested-With"},
 		ExposeHeaders:    []string{"Content-Length", "Authorization"},
-		AllowCredentials: true,
+		AllowCredentials: false, // Set to false when AllowAllOrigins is true
 		MaxAge:           12 * time.Hour,
 	}))
 
+	// Register all routes
 	routes.HealthRoutes(router)
 	routes.UserRoutes(router)
+	routes.InvoiceRoutes(router)
 
+	// Apply authentication middleware to protected routes
 	router.Use(middlewares.Authentication())
 
 	routes.MenuRoutes(router)
@@ -67,7 +71,6 @@ func main() {
 	routes.TableRoutes(router)
 	routes.OrderRoutes(router)
 	routes.OrderItemRoutes(router)
-	routes.InvoiceRoutes(router)
 	routes.SalesReportRoutes(router)
 
 	server := &http.Server{

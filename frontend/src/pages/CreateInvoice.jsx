@@ -66,7 +66,7 @@ export default function CreateInvoice() {
           paymentStatus: 'PENDING',
           paymentDueDate: ''
         })
-        navigate('/dashboard') // Navigate to dashboard or invoices page
+        navigate('/') // Navigate to dashboard or invoices page
       }, 2000)
       
     } catch (err) {
@@ -78,12 +78,12 @@ export default function CreateInvoice() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="page-surface">
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="mb-8">
           <button
-            onClick={() => navigate('/dashboard')}
+            onClick={() => navigate('/')}
             className="flex items-center text-gray-600 hover:text-gray-900 mb-4 transition-colors"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -135,7 +135,7 @@ export default function CreateInvoice() {
                 <div className="input bg-gray-100 text-gray-500">Loading orders...</div>
               ) : orders.length === 0 ? (
                 <div className="input bg-red-50 text-red-600">
-                  No orders found. <a href="/create/order" className="underline">Create an order first</a>
+                  No orders found. <a href="/menu-with-foods" className="underline">Use Order Food first</a>
                 </div>
               ) : (
                 <select
@@ -223,7 +223,7 @@ export default function CreateInvoice() {
               </button>
               <button
                 type="button"
-                onClick={() => navigate('/dashboard')}
+                onClick={() => navigate('/')}
                 className="btn btn-secondary"
               >
                 Cancel

@@ -63,20 +63,15 @@ export default function CreateOrder() {
         tableId: tableId
       }
       
-      console.log('Creating order with payload:', JSON.stringify(payload, null, 2))
-      
-      await post('/api/v1/orders', payload)
+      const orderResponse = await post('/api/v1/orders', payload)
       setSuccess('Order created successfully!')
       
       // Auto-generate invoice for the order
       try {
-        const orderResponse = await get('/api/v1/orders')
-        const orders = orderResponse.orders || orderResponse || []
-        const latestOrder = orders[orders.length - 1]
+        const orderId = orderResponse?.order?.orderId
         
-        if (latestOrder && latestOrder.orderId) {
-          await post(`/api/v1/orders/${latestOrder.orderId}/invoice`, {})
-          console.log('Invoice generated automatically for order:', latestOrder.orderId)
+        if (orderId) {
+          await post(`/api/v1/orders/${orderId}/invoice`, {})
         }
       } catch (invoiceErr) {
         console.error('Failed to generate invoice:', invoiceErr)
@@ -89,7 +84,7 @@ export default function CreateOrder() {
           orderDate: '',
           tableId: ''
         })
-        navigate('/dashboard') // Navigate to dashboard or orders page
+        navigate('/') // Navigate to dashboard or orders page
       }, 2000)
       
     } catch (err) {
@@ -101,12 +96,12 @@ export default function CreateOrder() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="page-surface">
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="mb-8">
           <button
-            onClick={() => navigate('/dashboard')}
+            onClick={() => navigate('/')}
             className="flex items-center text-gray-600 hover:text-gray-900 mb-4 transition-colors"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -197,7 +192,7 @@ export default function CreateOrder() {
               </button>
               <button
                 type="button"
-                onClick={() => navigate('/dashboard')}
+                onClick={() => navigate('/')}
                 className="btn btn-secondary"
               >
                 Cancel

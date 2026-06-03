@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { get, post } from '../api/client'
+import { get } from '../api/client'
 import { ArrowLeft, Plus, FileText, Calendar, DollarSign, AlertCircle, TrendingUp, BarChart3 } from 'lucide-react'
 
 export default function SalesReports() {
@@ -15,7 +15,6 @@ export default function SalesReports() {
       try {
         const response = await get('/api/v1/sales-reports')
         const reportsData = response.reports || response || []
-        console.log('Sales reports data received:', reportsData)
         setReports(reportsData)
       } catch (err) {
         console.error('Error fetching sales reports:', err)
@@ -38,8 +37,7 @@ export default function SalesReports() {
     setError('')
 
     try {
-      const response = await post(`/api/v1/sales-reports/daily?date=${selectedDate}`, {})
-      console.log('Sales report generated:', response)
+      await get('/api/v1/sales-reports/daily', { date: selectedDate })
       
       // Refresh reports list
       const reportsResponse = await get('/api/v1/sales-reports')
@@ -57,7 +55,7 @@ export default function SalesReports() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary-50 to-indigo-100 flex items-center justify-center">
+      <div className="min-h-[360px] flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading sales reports...</p>
@@ -67,7 +65,7 @@ export default function SalesReports() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="page-surface">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">

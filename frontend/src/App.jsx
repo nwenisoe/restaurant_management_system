@@ -1,9 +1,11 @@
 import React from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { CartProvider } from './contexts/CartContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import Login from './pages/Login'
 import Menu from './pages/Menu'
+import MenuWithFoods from './pages/MenuWithFoods'
 import Orders from './pages/Orders'
 import Foods from './pages/Foods'
 import Tables from './pages/Tables'
@@ -12,11 +14,11 @@ import Signup from './pages/Signup'
 import CreateMenu from './pages/CreateMenu'
 import CreateFood from './pages/CreateFood'
 import CreateTable from './pages/CreateTable'
-import CreateOrder from './pages/CreateOrder'
-import CreateOrderItem from './pages/CreateOrderItem'
 import CreateInvoice from './pages/CreateInvoice'
 import Dashboard from './pages/Dashboard'
 import SalesReports from './pages/SalesReports'
+import SalesDetails from './pages/SalesDetails'
+import SummaryReport from './pages/SummaryReport'
 
 function AppRoutes() {
   const { isAuthenticated } = useAuth()
@@ -30,9 +32,19 @@ function AppRoutes() {
           <ProtectedRoute><Dashboard /></ProtectedRoute> : 
           <Navigate to="/login" replace />
       } />
-      <Route path="/menu" element={
+      <Route path="/menus" element={
         isAuthenticated ? 
           <ProtectedRoute><Menu /></ProtectedRoute> : 
+          <Navigate to="/login" replace />
+      } />
+      <Route path="/menu-with-foods" element={
+        isAuthenticated ? 
+          <ProtectedRoute><MenuWithFoods /></ProtectedRoute> : 
+          <Navigate to="/login" replace />
+      } />
+      <Route path="/foods" element={
+        isAuthenticated ? 
+          <ProtectedRoute><Foods /></ProtectedRoute> : 
           <Navigate to="/login" replace />
       } />
       <Route path="/create/menu" element={
@@ -52,22 +64,17 @@ function AppRoutes() {
       } />
       <Route path="/create/order" element={
         isAuthenticated ? 
-          <ProtectedRoute><CreateOrder /></ProtectedRoute> : 
+          <Navigate to="/menu-with-foods" replace /> : 
           <Navigate to="/login" replace />
       } />
       <Route path="/create/orderitem" element={
         isAuthenticated ? 
-          <ProtectedRoute><CreateOrderItem /></ProtectedRoute> : 
+          <Navigate to="/menu-with-foods" replace /> : 
           <Navigate to="/login" replace />
       } />
       <Route path="/create/invoice" element={
         isAuthenticated ? 
           <ProtectedRoute><CreateInvoice /></ProtectedRoute> : 
-          <Navigate to="/login" replace />
-      } />
-      <Route path="/foods" element={
-        isAuthenticated ? 
-          <ProtectedRoute><Foods /></ProtectedRoute> : 
           <Navigate to="/login" replace />
       } />
       <Route path="/tables" element={
@@ -90,6 +97,16 @@ function AppRoutes() {
           <ProtectedRoute><SalesReports /></ProtectedRoute> : 
           <Navigate to="/login" replace />
       } />
+      <Route path="/sales-details" element={
+        isAuthenticated ? 
+          <ProtectedRoute><SalesDetails /></ProtectedRoute> : 
+          <Navigate to="/login" replace />
+      } />
+      <Route path="/summary-report" element={
+        isAuthenticated ? 
+          <ProtectedRoute><SummaryReport /></ProtectedRoute> : 
+          <Navigate to="/login" replace />
+      } />
       <Route path="*" element={<Navigate to={isAuthenticated ? "/" : "/login"} replace />} />
     </Routes>
   )
@@ -98,7 +115,9 @@ function AppRoutes() {
 export default function App() {
   return (
     <AuthProvider>
-      <AppRoutes />
+      <CartProvider>
+        <AppRoutes />
+      </CartProvider>
     </AuthProvider>
   )
 }

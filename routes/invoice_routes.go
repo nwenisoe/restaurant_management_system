@@ -15,6 +15,7 @@ func InvoiceRoutes(router *gin.Engine) {
 			invoices.GET("", controllers.GetAllInvoices())
 			invoices.GET("/:invoiceId", controllers.GetInvoiceByID())
 			invoices.PATCH("/:invoiceId", controllers.UpdateInvoiceByID())
+			invoices.DELETE("/:invoiceId", controllers.DeleteInvoiceByID())
 		}
 
 		// Auto-generate invoice from order
