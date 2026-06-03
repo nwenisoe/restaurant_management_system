@@ -20,7 +20,7 @@ type OrderItemPack struct {
 	TableID    string `json:"tableId" binding:"required"`
 	OrderItems []struct {
 		FoodID   string `json:"foodId" binding:"required"`
-		Quantity string `json:"quantity" binding:"required,oneof=S M L"`
+		Quantity string `json:"quantity" binding:"required,numeric"`
 	} `json:"orderItems" binding:"required"`
 }
 
@@ -35,6 +35,16 @@ func CreateOrderItem() gin.HandlerFunc {
 
 		if err := c.BindJSON(&orderItemPack); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+			return
+		}
+
+		var table models.Table
+		err := tableCollection.FindOne(ctx, bson.M{"tableId": orderItemPack.TableID}).Decode(&table)
+		if err == mongo.ErrNoDocuments {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Table not found", "tableId": orderItemPack.TableID})
+			return
+		} else if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify table"})
 			return
 		}
 
@@ -83,7 +93,7 @@ func CreateOrderItem() gin.HandlerFunc {
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"message": "Order and items created successfully", "totalCount": len(createdOrderItems), "orderItems": createdOrderItems})
+		c.JSON(http.StatusOK, gin.H{"message": "Order and items created successfully", "orderId": orderId, "totalCount": len(createdOrderItems), "orderItems": createdOrderItems})
 	}
 }
 
@@ -177,7 +187,7 @@ func UpdateOrderItemByID() gin.HandlerFunc {
 		updateObj := bson.D{}
 
 		if orderItem.UnitPrice != nil {
-			updateObj = append(updateObj, bson.E{Key: "unitprice", Value: *orderItem.UnitPrice})
+			updateObj = append(updateObj, bson.E{Key: "unitPrice", Value: *orderItem.UnitPrice})
 		}
 
 		if orderItem.Quantity != nil {

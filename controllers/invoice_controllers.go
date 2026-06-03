@@ -14,6 +14,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type InvoiceViewFormat struct {
@@ -86,7 +87,8 @@ func GetAllInvoices() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
 		defer cancel()
 
-		cursor, err := invoiceCollection.Find(ctx, bson.M{})
+		findOptions := options.Find().SetSort(bson.D{{Key: "createdAt", Value: -1}, {Key: "orderDate", Value: -1}})
+		cursor, err := invoiceCollection.Find(ctx, bson.M{}, findOptions)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve invoices"})
 			return
@@ -269,19 +271,27 @@ func GenerateInvoiceFromOrder() gin.HandlerFunc {
 			totalAmount += subtotal
 		}
 
-		// Generate unique invoice ID
-		invoiceID := fmt.Sprintf("INV-%d-%s", time.Now().Unix(), orderID[:8])
+		orderIDSuffix := orderID
+		if len(orderIDSuffix) > 8 {
+			orderIDSuffix = orderIDSuffix[:8]
+		}
+		invoiceID := fmt.Sprintf("INV-%d-%s", time.Now().Unix(), orderIDSuffix)
 
 		// Set payment details
 		paymentDueDate := time.Now().Add(24 * time.Hour) // Due in 24 hours
+
+		tableNumber := ""
+		if table.TableNumber != nil {
+			tableNumber = strconv.Itoa(*table.TableNumber)
+		}
 
 		// Create invoice
 		invoice := models.Invoice{
 			ID:             primitive.NewObjectID(),
 			InvoiceID:      invoiceID,
 			OrderID:        orderID,
-			TableID:        *order.TableID,
-			TableNumber:    fmt.Sprintf("%d", *table.TableNumber),
+			TableID:        helper.GetNonNilString(order.TableID, ""),
+			TableNumber:    tableNumber,
 			OrderDate:      order.OrderDate,
 			FoodItems:      invoiceFoodItems,
 			TotalAmount:    totalAmount,
@@ -311,7 +321,12 @@ func UpdateInvoiceByID() gin.HandlerFunc {
 		defer cancel()
 
 		invoiceID := c.Param("invoiceId")
-		var updateData models.Invoice
+		var updateData struct {
+			PaymentMethod *string                   `json:"paymentMethod"`
+			PaymentStatus *string                   `json:"paymentStatus"`
+			FoodItems     *[]models.InvoiceFoodItem `json:"foodItems"`
+			TotalAmount   *float64                  `json:"totalAmount"`
+		}
 
 		if err := c.BindJSON(&updateData); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input: " + err.Error()})
@@ -322,14 +337,40 @@ func UpdateInvoiceByID() gin.HandlerFunc {
 		updateFields := bson.D{}
 
 		if updateData.PaymentMethod != nil {
-			updateFields = append(updateFields, bson.E{Key: "paymentMethod", Value: updateData.PaymentMethod})
+			switch *updateData.PaymentMethod {
+			case "CARD", "CASH", "ONLINE":
+				updateFields = append(updateFields, bson.E{Key: "paymentMethod", Value: updateData.PaymentMethod})
+			default:
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payment method"})
+				return
+			}
 		}
 
 		if updateData.PaymentStatus != nil {
-			updateFields = append(updateFields, bson.E{Key: "paymentStatus", Value: updateData.PaymentStatus})
-		} else {
-			defaultStatus := "PENDING"
-			updateFields = append(updateFields, bson.E{Key: "paymentStatus", Value: defaultStatus})
+			switch *updateData.PaymentStatus {
+			case "PENDING", "PAID", "CANCELLED":
+				updateFields = append(updateFields, bson.E{Key: "paymentStatus", Value: updateData.PaymentStatus})
+			default:
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payment status"})
+				return
+			}
+		}
+
+		if updateData.FoodItems != nil {
+			updateFields = append(updateFields, bson.E{Key: "foodItems", Value: updateData.FoodItems})
+		}
+
+		if updateData.TotalAmount != nil {
+			if *updateData.TotalAmount < 0 {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Total amount cannot be negative"})
+				return
+			}
+			updateFields = append(updateFields, bson.E{Key: "totalAmount", Value: *updateData.TotalAmount})
+		}
+
+		if len(updateFields) == 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "No fields to update"})
+			return
 		}
 
 		updateFields = append(updateFields, bson.E{Key: "updatedAt", Value: time.Now().UTC()})
@@ -355,5 +396,31 @@ func UpdateInvoiceByID() gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, gin.H{"message": "Invoice updated successfully", "invoice": updatedInvoice})
+	}
+}
+
+func DeleteInvoiceByID() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		invoiceID := c.Param("invoiceId")
+		if invoiceID == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invoiceId parameter is required"})
+			return
+		}
+
+		result, err := invoiceCollection.DeleteOne(ctx, bson.M{"invoiceId": invoiceID})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete invoice"})
+			return
+		}
+
+		if result.DeletedCount == 0 {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Invoice not found"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Invoice deleted successfully", "deletedCount": result.DeletedCount})
 	}
 }

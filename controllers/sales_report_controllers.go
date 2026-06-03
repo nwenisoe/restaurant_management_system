@@ -42,6 +42,9 @@ func GenerateDailySalesReport() gin.HandlerFunc {
 
 		// Get date from query parameter (default to today)
 		dateParam := c.Query("date")
+		if dateParam == "" {
+			dateParam = c.Param("date")
+		}
 		var reportDate time.Time
 		var err error
 

@@ -19,7 +19,7 @@ export default function SalesDetails() {
       setLoading(true)
       
       // Fetch today's invoices
-      const response = await get('/api/v1/public-invoices')
+      const response = await get('/api/v1/invoices')
       const invoicesData = response.invoices || response || []
       
       // Filter invoices for the selected date
@@ -207,9 +207,9 @@ export default function SalesDetails() {
                       <tr key={item.foodName} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
-                            {index === 0 && <span className="text-2xl">🥇</span>}
-                            {index === 1 && <span className="text-2xl">🥈</span>}
-                            {index === 2 && <span className="text-2xl">🥉</span>}
+                            {index === 0 && <span className="font-semibold text-slate-900">#1</span>}
+                            {index === 1 && <span className="font-semibold text-slate-700">#2</span>}
+                            {index === 2 && <span className="font-semibold text-slate-700">#3</span>}
                             {index > 2 && <span className="text-gray-500">#{index + 1}</span>}
                           </div>
                         </td>
@@ -259,7 +259,7 @@ export default function SalesDetails() {
         {salesData.length > 0 && (
           <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">🏆 Top Seller</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Seller</h3>
               <div className="text-center">
                 <p className="text-2xl font-bold text-green-600 mb-2">{salesData[0].foodName}</p>
                 <p className="text-gray-600">
@@ -273,7 +273,7 @@ export default function SalesDetails() {
 
             {salesData.length > 1 && (
               <div className="bg-white rounded-lg shadow p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">🥈 Second Place</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Second Place</h3>
                 <div className="text-center">
                   <p className="text-2xl font-bold text-blue-600 mb-2">{salesData[1].foodName}</p>
                   <p className="text-gray-600">
@@ -288,7 +288,7 @@ export default function SalesDetails() {
 
             {salesData.length > 2 && (
               <div className="bg-white rounded-lg shadow p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">🥉 Third Place</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Third Place</h3>
                 <div className="text-center">
                   <p className="text-2xl font-bold text-orange-600 mb-2">{salesData[2].foodName}</p>
                   <p className="text-gray-600">

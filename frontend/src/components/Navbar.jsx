@@ -10,7 +10,7 @@ export default function Navbar({ onLogout }) {
 
   const navigation = [
     { name: 'Dashboard', href: '/', icon: Home },
-    { name: 'Menu', href: '/menu', icon: Utensils },
+    { name: 'Menu', href: '/menus', icon: Utensils },
     { name: 'Foods', href: '/foods', icon: ShoppingCart },
     { name: 'Tables', href: '/tables', icon: Table },
     { name: 'Orders', href: '/orders', icon: ShoppingCart },
@@ -21,33 +21,34 @@ export default function Navbar({ onLogout }) {
     { name: 'New Menu', href: '/create/menu' },
     { name: 'New Food', href: '/create/food' },
     { name: 'New Table', href: '/create/table' },
-    { name: 'New Order', href: '/create/order' },
-    { name: 'New OrderItem', href: '/create/orderitem' },
     { name: 'New Invoice', href: '/create/invoice' },
   ]
 
   return (
-    <nav className="bg-white shadow-lg border-b border-gray-200">
+    <nav className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16">
+        <div className="flex h-14 justify-between">
           <div className="flex items-center">
             <div className="flex-shrink-0 flex items-center">
-              <Utensils className="h-8 w-8 text-primary-600" />
-              <span className="ml-2 text-xl font-bold text-gray-900">Restaurant Manager</span>
+              <div className="flex h-9 w-9 items-center justify-center rounded-md bg-slate-900 text-white">
+                <Utensils className="h-5 w-5" />
+              </div>
+              <span className="ml-3 text-base font-semibold text-slate-950">Restaurant Manager</span>
             </div>
             
             {isAuthenticated && (
-              <div className="hidden md:ml-10 md:flex md:space-x-8">
+              <div className="hidden md:ml-8 md:flex md:items-center md:gap-1">
                 {navigation.map((item) => {
                   const Icon = item.icon
+                  const isActive = location.pathname === item.href
                   return (
                     <Link
                       key={item.name}
                       to={item.href}
-                      className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
-                        location.pathname === item.href
-                          ? 'border-primary-500 text-gray-900'
-                          : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                      className={`inline-flex items-center rounded-md px-3 py-2 text-sm font-medium ${
+                        isActive
+                          ? 'bg-slate-100 text-slate-950'
+                          : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
                       }`}
                     >
                       <Icon className="h-4 w-4 mr-2" />
@@ -63,17 +64,17 @@ export default function Navbar({ onLogout }) {
             {isAuthenticated ? (
               <>
                 <div className="relative group">
-                  <button className="flex items-center text-gray-500 hover:text-gray-700 px-3 py-2 rounded-md text-sm font-medium">
+                  <button className="btn btn-secondary">
                     <Plus className="h-4 w-4 mr-1" />
                     Create
                   </button>
-                  <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                    <div className="py-1">
+                  <div className="invisible absolute right-0 z-50 mt-2 w-48 rounded-lg border border-slate-200 bg-white p-1 opacity-0 shadow-lg transition-all duration-150 group-hover:visible group-hover:opacity-100">
+                    <div>
                       {createItems.map((item) => (
                         <Link
                           key={item.name}
                           to={item.href}
-                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          className="block rounded-md px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
                         >
                           {item.name}
                         </Link>
@@ -84,7 +85,7 @@ export default function Navbar({ onLogout }) {
                 
                 <button
                   onClick={onLogout}
-                  className="flex items-center text-gray-500 hover:text-gray-700 px-3 py-2 rounded-md text-sm font-medium"
+                  className="inline-flex items-center rounded-md px-3 py-2 text-sm font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-900"
                 >
                   <LogOut className="h-4 w-4 mr-1" />
                   Logout

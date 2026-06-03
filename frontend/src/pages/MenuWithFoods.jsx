@@ -38,10 +38,6 @@ export default function MenuWithFoods() {
         const foodsData = foodsRes.foodItems || foodsRes || []
         const tablesData = tablesRes.tables || tablesRes || []
         
-        console.log('Menus data received:', menusData)
-        console.log('Foods data received:', foodsData)
-        console.log('Tables data received:', tablesData)
-        
         setMenus(menusData)
         setFoods(foodsData)
         setTables(tablesData)
@@ -68,7 +64,7 @@ export default function MenuWithFoods() {
   // Fetch recent invoices
   const fetchInvoices = async () => {
     try {
-      const response = await get('/api/v1/public-invoices')
+      const response = await get('/api/v1/invoices')
       const invoicesData = response.invoices || response || []
       
       // Normalize invoice data
@@ -101,7 +97,7 @@ export default function MenuWithFoods() {
     try {
       setUpdatingStatus(prev => ({ ...prev, [invoiceId]: true }))
       
-      const response = await patch(`/api/v1/public-invoices/${invoiceId}`, {
+      const response = await patch(`/api/v1/invoices/${invoiceId}`, {
         paymentStatus: newStatus,
         updatedAt: new Date().toISOString()
       })
@@ -150,12 +146,6 @@ export default function MenuWithFoods() {
     const matchesSearch = !searchTerm || 
       food.name?.toLowerCase().includes(searchTerm.toLowerCase())
     
-    // Debug logging
-    if (selectedMenu) {
-      console.log('Filtering for menu:', selectedMenu.menuId, selectedMenu.name)
-      console.log('Food:', food.name, 'menuId:', food.menuId, 'matches:', matchesMenu)
-    }
-    
     return matchesMenu && matchesSearch
   })
 
@@ -180,22 +170,17 @@ export default function MenuWithFoods() {
       }
       
       const orderItemsResponse = await post('/api/v1/orderItems', orderItemsPayload)
-      console.log('Order and items created:', orderItemsResponse)
 
-      // Get the created order to find the latest one
-      const ordersResponse = await get('/api/v1/orders')
-      const orders = ordersResponse.orders || ordersResponse || []
-      const latestOrder = orders[orders.length - 1]
+      const orderId = orderItemsResponse.orderId
 
-      if (latestOrder && latestOrder.orderId) {
+      if (orderId) {
         // Generate invoice with payment method and status
         const invoicePayload = {
           paymentMethod: paymentMethod,
           paymentStatus: paymentStatus // Use the selected payment status
         }
         
-        await post(`/api/v1/orders/${latestOrder.orderId}/invoice`, invoicePayload)
-        console.log('Invoice generated for order:', latestOrder.orderId)
+        const invoiceResponse = await post(`/api/v1/orders/${orderId}/invoice`, invoicePayload)
 
         // Clear cart and show success
         clearCart()
@@ -206,19 +191,19 @@ export default function MenuWithFoods() {
         const tableNumber = selectedTableDetails?.tableNumber || selectedTable
         
         // Set success message for modal
-        const message = `✅ Order Placed Successfully!
+        const invoiceId = invoiceResponse?.invoice?.invoiceId || 'new invoice'
+        const message = `Order Placed Successfully!
 
-📋 Order Details:
-🪑 Table: ${tableNumber}
-🕐 Time: ${new Date(orderTime).toLocaleString()}
-💳 Payment: ${paymentMethod}
-📊 Status: ${paymentStatus}
-💰 Total: $${getTotalAmount().toFixed(2)}
+Order Details:
+Table: ${tableNumber}
+Time: ${new Date(orderTime).toLocaleString()}
+Payment: ${paymentMethod}
+Status: ${paymentStatus}
+Total: $${getTotalAmount().toFixed(2)}
 
-🧾 Invoice #INV-${Date.now().toString().slice(-8)} generated successfully!
+Invoice ${invoiceId} generated successfully!
 
 View your invoice history in the Invoices section.`
-        
         setSuccessMessage(message)
         setShowSuccessModal(true)
       }
@@ -230,7 +215,7 @@ View your invoice history in the Invoices section.`
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary-50 to-indigo-100 flex items-center justify-center">
+      <div className="min-h-[360px] flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading menu...</p>
@@ -240,7 +225,7 @@ View your invoice history in the Invoices section.`
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="page-surface">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
@@ -378,7 +363,7 @@ View your invoice history in the Invoices section.`
                     onClick={() => setShowCart(false)}
                     className="p-2 hover:bg-gray-100 rounded-md"
                   >
-                    ×
+                    x
                   </button>
                 </div>
                 
@@ -411,7 +396,7 @@ View your invoice history in the Invoices section.`
                               onClick={() => removeFromCart(item.foodId)}
                               className="p-1 rounded hover:bg-red-100 text-red-600 ml-2"
                             >
-                              ×
+                              x
                             </button>
                           </div>
                         </div>
@@ -507,7 +492,7 @@ View your invoice history in the Invoices section.`
                 <div className="space-y-3 mb-6">
                   {items.map(item => (
                     <div key={item.foodId} className="flex justify-between">
-                      <span>{item.quantity} × {item.foodName}</span>
+                      <span>{item.quantity} x {item.foodName}</span>
                       <span>${(item.price * item.quantity).toFixed(2)}</span>
                     </div>
                   ))}
@@ -550,7 +535,7 @@ View your invoice history in the Invoices section.`
             to="/invoices"
             className="text-blue-600 hover:text-blue-800 text-sm font-medium"
           >
-            View All →
+            View All
           </Link>
         </div>
         
@@ -558,7 +543,7 @@ View your invoice history in the Invoices section.`
           <div className="text-center py-8 text-gray-500">
             <Receipt className="h-12 w-12 mx-auto mb-3 text-gray-300" />
             <p>No invoices yet</p>
-            <p className="text-sm">Create an order to generate your first invoice</p>
+            <p className="text-sm">Place a food order to generate your first invoice</p>
           </div>
         ) : (
           <div className="space-y-3">

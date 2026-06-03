@@ -33,9 +33,9 @@ func CreateOrder() gin.HandlerFunc {
 			return
 		}
 
-		if *(order.TableID) != "" {
+		if order.TableID != nil && *order.TableID != "" {
 			var table models.Table
-			err := tableCollection.FindOne(ctx, bson.M{"tableId": order.TableID}).Decode(&table)
+			err := tableCollection.FindOne(ctx, bson.M{"tableId": *order.TableID}).Decode(&table)
 			if err == mongo.ErrNoDocuments {
 				c.JSON(http.StatusNotFound, gin.H{"error": "Table not found"})
 				return
@@ -65,7 +65,8 @@ func GetAllOrders() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
-		cursor, err := orderCollection.Find(ctx, bson.M{})
+		findOptions := options.Find().SetSort(bson.D{{Key: "orderDate", Value: -1}, {Key: "createdAt", Value: -1}})
+		cursor, err := orderCollection.Find(ctx, bson.M{}, findOptions)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve orders"})
 			return
@@ -125,9 +126,9 @@ func UpdateOrderByID() gin.HandlerFunc {
 		}
 
 		updateObj := bson.D{}
-		if *(order.TableID) != "" {
+		if order.TableID != nil && *order.TableID != "" {
 			var table models.Table
-			err := tableCollection.FindOne(ctx, bson.M{"tableId": order.TableID}).Decode(&table)
+			err := tableCollection.FindOne(ctx, bson.M{"tableId": *order.TableID}).Decode(&table)
 			if err == mongo.ErrNoDocuments {
 				c.JSON(http.StatusNotFound, gin.H{"error": "Table not found"})
 				return
@@ -135,7 +136,7 @@ func UpdateOrderByID() gin.HandlerFunc {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify table"})
 				return
 			}
-			updateObj = append(updateObj, bson.E{Key: "tableId", Value: order.TableID})
+			updateObj = append(updateObj, bson.E{Key: "tableId", Value: *order.TableID})
 		}
 
 		order.UpdatedAt = time.Now().UTC()

@@ -1,9 +1,8 @@
 package routes
 
 import (
-	"github.com/nwenisoe/menu-management/controllers"
-
 	"github.com/gin-gonic/gin"
+	"github.com/nwenisoe/menu-management/controllers"
 )
 
 func MenuRoutes(router *gin.Engine) {
@@ -16,5 +15,14 @@ func MenuRoutes(router *gin.Engine) {
 			menus.GET("/:menuId", controllers.GetMenuByID())
 			menus.PATCH("/:menuId", controllers.UpdateMenuByID())
 		}
+	}
+
+}
+func PublicMenuRoutes(router *gin.Engine) {
+	api := router.Group("/api/v1")
+	if api == nil {
+		return
+	} else if api.BasePath() != "/api/v1" {
+		return
 	}
 }

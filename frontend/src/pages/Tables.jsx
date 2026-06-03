@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { get } from '../api/client'
-import { ArrowLeft, Plus, Users, Table2, AlertCircle, Search } from 'lucide-react'
+import { Plus, Users, Table2, AlertCircle, Search, Armchair, Sparkles } from 'lucide-react'
 
 export default function Tables() {
   const [tables, setTables] = useState([])
@@ -13,10 +13,7 @@ export default function Tables() {
     const fetchTables = async () => {
       try {
         const response = await get('/api/v1/tables')
-        const tablesData = response.tables || response || []
-        console.log('Tables data received:', response)
-        console.log('Tables extracted:', tablesData)
-        setTables(tablesData)
+        setTables(response.tables || response || [])
       } catch (err) {
         console.error('Error fetching tables:', err)
         setError(`Failed to load tables: ${err.response?.data?.error || err.message}`)
@@ -28,150 +25,149 @@ export default function Tables() {
     fetchTables()
   }, [])
 
-  // Filter tables based on search term
-  const filteredTables = tables.filter(table => 
+  const filteredTables = tables.filter(table =>
     table.tableNumber?.toString().includes(searchTerm.toLowerCase()) ||
     table.numberOfGuests?.toString().includes(searchTerm.toLowerCase())
   )
 
+  const totalSeats = tables.reduce((sum, table) => sum + Number(table.numberOfGuests || 0), 0)
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary-50 to-indigo-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading tables...</p>
-        </div>
+      <div className="min-h-[360px] flex items-center justify-center">
+        <div className="h-10 w-10 animate-spin rounded-full border-2 border-slate-200 border-t-slate-900" />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <Link
-            to="/"
-            className="flex items-center text-gray-600 hover:text-gray-900 mb-4 transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Dashboard
-          </Link>
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Tables</h1>
-              <p className="mt-2 text-gray-600">Manage restaurant seating capacity</p>
-            </div>
-            <Link
-              to="/create/table"
-              className="btn btn-primary flex items-center"
-            >
-              <Plus className="h-4 w-4 mr-2" />
+    <div className="page-surface">
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Tables</h1>
+          <p className="page-subtitle">A quick view of seating capacity across the dining room.</p>
+        </div>
+        <Link to="/create/table" className="btn btn-primary">
+          <Plus className="h-4 w-4" />
+          New Table
+        </Link>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="metric-card">
+          <p className="text-sm font-medium text-slate-500">Tables</p>
+          <p className="mt-2 text-3xl font-semibold text-slate-950">{tables.length}</p>
+        </div>
+        <div className="metric-card">
+          <p className="text-sm font-medium text-slate-500">Total Seats</p>
+          <p className="mt-2 text-3xl font-semibold text-slate-950">{totalSeats}</p>
+        </div>
+        <div className="metric-card">
+          <p className="text-sm font-medium text-slate-500">Average Party Size</p>
+          <p className="mt-2 text-3xl font-semibold text-slate-950">
+            {tables.length ? Math.round(totalSeats / tables.length) : 0}
+          </p>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            className="input pl-10"
+            placeholder="Search by table number or seats..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+      </div>
+
+      {error && (
+        <div className="rounded-md border border-red-200 bg-red-50 p-4">
+          <div className="flex">
+            <AlertCircle className="h-5 w-5 text-red-500" />
+            <p className="ml-3 text-sm text-red-800">{error}</p>
+          </div>
+        </div>
+      )}
+
+      {filteredTables.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-slate-300 bg-white p-10 text-center">
+          <Table2 className="mx-auto h-10 w-10 text-slate-300" />
+          <h3 className="mt-4 text-base font-semibold text-slate-950">
+            {searchTerm ? 'No tables found' : 'No tables yet'}
+          </h3>
+          <p className="mt-1 text-sm text-slate-500">
+            {searchTerm ? 'Try another search.' : 'Create tables to start planning the dining room.'}
+          </p>
+          {!searchTerm && (
+            <Link to="/create/table" className="btn btn-primary mt-5">
+              <Plus className="h-4 w-4" />
               New Table
             </Link>
-          </div>
+          )}
         </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+          {filteredTables.map((table, index) => {
+            const capacity = Number(table.numberOfGuests || 0)
+            const zone = index % 3 === 0 ? 'Window' : index % 3 === 1 ? 'Main floor' : 'Patio'
 
-        {/* Search Bar */}
-        <div className="mb-6">
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-5 w-5 text-gray-400" />
-            </div>
-            <input
-              type="text"
-              className="input pl-10"
-              placeholder="Search tables..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-        </div>
-
-        {/* Error State */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
-            <div className="flex">
-              <AlertCircle className="h-5 w-5 text-red-400" />
-              <div className="ml-3">
-                <p className="text-sm text-red-800">{error}</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Tables List */}
-        <div className="card">
-          {filteredTables.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="mx-auto h-16 w-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                <Table2 className="h-8 w-8 text-gray-400" />
-              </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                {searchTerm ? 'No tables found' : 'No tables yet'}
-              </h3>
-              <p className="text-gray-500 mb-6">
-                {searchTerm ? 'Try a different search term' : 'Get started by creating your first table'}
-              </p>
-              {!searchTerm && (
-                <Link
-                  to="/create/table"
-                  className="btn btn-primary"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Table
-                </Link>
-              )}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredTables.map((table) => (
-                <div key={table.id || table.tableId} className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center">
-                      <div className="bg-primary-100 rounded-full p-3 mr-4">
-                        <Table2 className="h-6 w-6 text-primary-600" />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-semibold text-gray-900">Table #{table.tableNumber}</h3>
-                        <div className="flex items-center text-sm text-gray-500">
-                          <Users className="h-4 w-4 mr-1" />
-                          {table.numberOfGuests} guests
-                        </div>
-                      </div>
+            return (
+              <article key={table.id || table.tableId} className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition hover:border-slate-300">
+                <div className="relative h-36 bg-slate-900">
+                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(20,184,166,0.35),transparent_32%),radial-gradient(circle_at_75%_20%,rgba(251,191,36,0.28),transparent_28%)]" />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="relative flex h-20 w-20 items-center justify-center rounded-full border-4 border-white/80 bg-white/10">
+                      <Table2 className="h-8 w-8 text-white" />
+                      <div className="absolute -top-3 left-1/2 h-5 w-5 -translate-x-1/2 rounded-full bg-white/80" />
+                      <div className="absolute -bottom-3 left-1/2 h-5 w-5 -translate-x-1/2 rounded-full bg-white/80" />
+                      <div className="absolute -left-3 top-1/2 h-5 w-5 -translate-y-1/2 rounded-full bg-white/80" />
+                      <div className="absolute -right-3 top-1/2 h-5 w-5 -translate-y-1/2 rounded-full bg-white/80" />
                     </div>
                   </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                  <span className="absolute left-3 top-3 rounded-md bg-white/90 px-2 py-1 text-xs font-medium text-slate-800">
+                    {zone}
+                  </span>
+                </div>
+
+                <div className="p-4">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="text-lg font-semibold text-slate-950">Table {table.tableNumber}</h3>
+                      <div className="mt-1 flex items-center gap-2 text-sm text-slate-500">
+                        <Users className="h-4 w-4" />
+                        {capacity} guests
+                      </div>
+                    </div>
+                    <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
                       Available
-                    </span>
-                    <span className="text-xs text-gray-500">
-                      ID: {table.tableId || table.id}
                     </span>
                   </div>
 
-                  <div className="mt-4 pt-4 border-t border-gray-200">
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-gray-500">
-                        Capacity: {table.numberOfGuests} seats
-                      </span>
-                      <div className="flex space-x-2">
-                        <button className="text-primary-600 hover:text-primary-900 text-sm font-medium">
-                          Edit
-                        </button>
-                        <button className="text-red-600 hover:text-red-900 text-sm font-medium">
-                          Delete
-                        </button>
+                  <div className="mt-4 grid grid-cols-2 gap-3 border-t border-slate-100 pt-4">
+                    <div className="rounded-md bg-slate-50 p-3">
+                      <div className="flex items-center gap-1 text-xs text-slate-500">
+                        <Armchair className="h-3.5 w-3.5" />
+                        Seats
                       </div>
+                      <p className="mt-1 font-semibold text-slate-950">{capacity}</p>
+                    </div>
+                    <div className="rounded-md bg-slate-50 p-3">
+                      <div className="flex items-center gap-1 text-xs text-slate-500">
+                        <Sparkles className="h-3.5 w-3.5" />
+                        Status
+                      </div>
+                      <p className="mt-1 font-semibold text-slate-950">Ready</p>
                     </div>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
+              </article>
+            )
+          })}
         </div>
-      </div>
+      )}
     </div>
   )
 }

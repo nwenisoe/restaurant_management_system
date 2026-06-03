@@ -66,7 +66,7 @@ export default function CreateFood() {
           foodImage: '',
           menuId: ''
         })
-        navigate('/menu')
+        navigate('/menus')
       }, 2000)
       
     } catch (err) {
@@ -78,12 +78,12 @@ export default function CreateFood() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="page-surface">
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="mb-8">
           <button
-            onClick={() => navigate('/menu')}
+            onClick={() => navigate('/menus')}
             className="flex items-center text-gray-600 hover:text-gray-900 mb-4 transition-colors"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -224,7 +224,7 @@ export default function CreateFood() {
               </button>
               <button
                 type="button"
-                onClick={() => navigate('/menu')}
+                onClick={() => navigate('/menus')}
                 className="btn btn-secondary"
               >
                 Cancel

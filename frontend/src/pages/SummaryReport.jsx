@@ -21,7 +21,7 @@ export default function SummaryReport() {
       setLoading(true)
       
       // Fetch all invoices
-      const response = await get('/api/v1/public-invoices')
+      const response = await get('/api/v1/invoices')
       const invoicesData = response.invoices || response || []
       
       // Get the year and month from the selected date

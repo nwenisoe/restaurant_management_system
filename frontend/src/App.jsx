@@ -14,8 +14,6 @@ import Signup from './pages/Signup'
 import CreateMenu from './pages/CreateMenu'
 import CreateFood from './pages/CreateFood'
 import CreateTable from './pages/CreateTable'
-import CreateOrder from './pages/CreateOrder'
-import CreateOrderItem from './pages/CreateOrderItem'
 import CreateInvoice from './pages/CreateInvoice'
 import Dashboard from './pages/Dashboard'
 import SalesReports from './pages/SalesReports'
@@ -66,12 +64,12 @@ function AppRoutes() {
       } />
       <Route path="/create/order" element={
         isAuthenticated ? 
-          <ProtectedRoute><CreateOrder /></ProtectedRoute> : 
+          <Navigate to="/menu-with-foods" replace /> : 
           <Navigate to="/login" replace />
       } />
       <Route path="/create/orderitem" element={
         isAuthenticated ? 
-          <ProtectedRoute><CreateOrderItem /></ProtectedRoute> : 
+          <Navigate to="/menu-with-foods" replace /> : 
           <Navigate to="/login" replace />
       } />
       <Route path="/create/invoice" element={
