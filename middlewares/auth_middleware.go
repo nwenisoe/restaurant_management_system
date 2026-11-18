@@ -28,7 +28,7 @@ func Authentication() gin.HandlerFunc {
 		}
 
 		token, err := jwt.ParseWithClaims(clientToken, &helper.SignedDetails{}, func(token *jwt.Token) (interface{}, error) {
-			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			if token.Method != jwt.SigningMethodHS256 || helper.JWT_SECRET == "" {
 				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 			}
 			return []byte(helper.JWT_SECRET), nil
@@ -41,7 +41,7 @@ func Authentication() gin.HandlerFunc {
 		}
 
 		claims, ok := token.Claims.(*helper.SignedDetails)
-		if !ok || !token.Valid {
+		if !ok || !token.Valid || claims.UID == "" || claims.ExpiresAt == 0 {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired token"})
 			c.Abort()
 			return

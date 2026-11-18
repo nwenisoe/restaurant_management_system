@@ -22,7 +22,15 @@ type SignedDetails struct {
 	jwt.StandardClaims
 }
 
-var JWT_SECRET string = config.GetEnv("JWT_SECRET", "not-so-secret")
+var JWT_SECRET string
+
+func InitializeJWT() error {
+	JWT_SECRET = config.GetEnv("JWT_SECRET", "")
+	if JWT_SECRET == "" || JWT_SECRET == "not-so-secret" {
+		return errors.New("JWT_SECRET must be configured with a private signing key")
+	}
+	return nil
+}
 
 func GenerateAllTokens(email, firstName, lastName, uid string) (string, string, error) {
 	if JWT_SECRET == "" {
@@ -69,7 +77,7 @@ func UpdateAllTokens(signedAccessToken, signedRefreshToken, userId string) error
 	}
 
 	filter := bson.M{"userId": userId}
-	opts := options.Update().SetUpsert(true)
+	opts := options.Update().SetUpsert(false)
 
 	_, err := userCollection.UpdateOne(ctx, filter, bson.D{{Key: "$set", Value: updateFields}}, opts)
 	if err != nil {
@@ -118,7 +126,7 @@ func UpdateAccessToken(signedAccessToken, userId string) error {
 	}
 
 	filter := bson.M{"userId": userId}
-	opts := options.Update().SetUpsert(true)
+	opts := options.Update().SetUpsert(false)
 
 	_, err := userCollection.UpdateOne(ctx, filter, bson.D{{Key: "$set", Value: updateFields}}, opts)
 	if err != nil {
@@ -129,7 +137,7 @@ func UpdateAccessToken(signedAccessToken, userId string) error {
 }
 
 func GetOrGenerateTokens(user models.User) (string, string, error) {
-	if user.AccessToken != nil && ValidateToken(*user.AccessToken) == nil {
+	if user.AccessToken != nil && user.RefreshToken != nil && ValidateToken(*user.AccessToken) == nil && ValidateToken(*user.RefreshToken) == nil {
 		return *user.AccessToken, *user.RefreshToken, nil
 	}
 

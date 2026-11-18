@@ -2,22 +2,19 @@ package controllers
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"time"
 
-	"github.com/nwenisoe/menu-management/database"
 	helper "github.com/nwenisoe/menu-management/helpers"
 	"github.com/nwenisoe/menu-management/models"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
-	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-var userCollection *mongo.Collection = database.OpenCollection(database.Client, "user")
+var userCollection *mongo.Collection
 var validate = validator.New()
 
 func SignUp() gin.HandlerFunc {
@@ -36,6 +33,11 @@ func SignUp() gin.HandlerFunc {
 			return
 		}
 
+		if len(*user.Password) > 72 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Password must be at most 72 bytes"})
+			return
+		}
+
 		if exists, err := helper.CheckDuplicateFields(ctx, user.Email, user.Phone); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error checking user existence"})
 			return
@@ -44,19 +46,17 @@ func SignUp() gin.HandlerFunc {
 			return
 		}
 
-		user.Password = helper.HashPassword(user.Password)
+		passwordHash, err := helper.HashPassword(*user.Password)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
+			return
+		}
+		user.Password = &passwordHash
 		user.ID = primitive.NewObjectID()
 		user.UserID = user.ID.Hex()
 		user.CreatedAt = time.Now().UTC()
 		user.UpdatedAt = user.CreatedAt
 
-		// Try to insert user first without tokens
-		if _, err := userCollection.InsertOne(ctx, user); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Error creating user: %v", err)})
-			return
-		}
-
-		// Now generate tokens
 		accessToken, refreshToken, err := helper.GenerateAllTokens(*user.Email, *user.FirstName, *user.LastName, user.UserID)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error generating tokens"})
@@ -66,13 +66,12 @@ func SignUp() gin.HandlerFunc {
 		user.AccessToken = &accessToken
 		user.RefreshToken = &refreshToken
 
-		// Update user with tokens
-		filter := bson.M{"userId": user.UserID}
-		update := bson.M{"$set": bson.M{"accessToken": accessToken, "refreshToken": refreshToken, "updatedAt": time.Now().UTC()}}
-		if _, err := userCollection.UpdateOne(ctx, filter, update); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error updating user with tokens"})
+		if _, err := userCollection.InsertOne(ctx, user); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error creating user"})
 			return
 		}
+		user.Password = nil
+		user.RefreshToken = nil
 
 		c.JSON(http.StatusOK, gin.H{"message": "User created successfully", "user": user})
 	}
@@ -90,7 +89,11 @@ func Login() gin.HandlerFunc {
 		}
 
 		var foundUser models.User
-		if err := helper.FindUserByEmail(ctx, user.Email, &foundUser); err != nil {
+		if user.Email == nil || user.Password == nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Email and password are required"})
+			return
+		}
+		if err := helper.FindUserByEmail(ctx, user.Email, &foundUser); err != nil || foundUser.Password == nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
 			return
 		}
@@ -112,10 +115,9 @@ func Login() gin.HandlerFunc {
 			return
 		}
 
-		if err := helper.FindUserByEmail(ctx, user.Email, &foundUser); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error retrieving updated user"})
-			return
-		}
+		foundUser.Password = nil
+		foundUser.RefreshToken = nil
+		foundUser.AccessToken = &accessToken
 
 		c.JSON(http.StatusOK, gin.H{
 			"message": "User logged in successfully",

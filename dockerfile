@@ -1,5 +1,5 @@
 # Use the official Go image as the base image
-FROM golang:1.25 AS build-stage
+FROM golang:1.25.5 AS build-stage
 
 # Set the Current Working Directory inside the container
 WORKDIR /app
@@ -23,10 +23,12 @@ FROM debian:bullseye-slim AS build-release-stage
 RUN apt-get update && apt-get install -y curl
 
 # Set the Current Working Directory inside the container
-WORKDIR /
+WORKDIR /app
 
 # Copy the compiled binary from the build stage
 COPY --from=build-stage /main /main
+COPY healthCheck.sh /app/healthCheck.sh
+RUN sed -i 's/\r$//' /app/healthCheck.sh
 
 # Run the compiled file
 CMD ["/main"]

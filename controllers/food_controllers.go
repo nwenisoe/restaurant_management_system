@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/nwenisoe/menu-management/database"
 	helper "github.com/nwenisoe/menu-management/helpers"
 	"github.com/nwenisoe/menu-management/models"
 	"go.mongodb.org/mongo-driver/bson"
@@ -15,7 +14,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-var foodCollection *mongo.Collection = database.OpenCollection(database.Client, "food")
+var foodCollection *mongo.Collection
 
 func CreateFood() gin.HandlerFunc {
 	return func(c *gin.Context) {

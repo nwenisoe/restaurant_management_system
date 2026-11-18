@@ -1,17 +1,19 @@
 import React, { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { post, get } from '../api/client'
 import { ArrowLeft, Save, CreditCard, Calendar, Receipt, AlertCircle } from 'lucide-react'
 
 export default function CreateInvoice() {
   const navigate = useNavigate()
+  const { state } = useLocation()
+  const [searchParams] = useSearchParams()
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError] = useState(state?.checkoutError ?? '')
   const [success, setSuccess] = useState('')
   const [orders, setOrders] = useState([])
   const [ordersLoading, setOrdersLoading] = useState(true)
   const [formData, setFormData] = useState({
-    orderId: '',
+    orderId: searchParams.get('orderId') ?? '',
     paymentMethod: 'CASH',
     paymentStatus: 'PENDING',
     paymentDueDate: ''
@@ -22,7 +24,7 @@ export default function CreateInvoice() {
     const fetchOrders = async () => {
       try {
         const response = await get('/api/v1/orders')
-        const ordersData = response.orders || response || []
+        const ordersData = response.orders ?? []
         setOrders(ordersData)
       } catch (err) {
         console.error('Error fetching orders:', err)
@@ -52,7 +54,7 @@ export default function CreateInvoice() {
     try {
       const payload = {
         ...formData,
-        paymentDueDate: formData.paymentDueDate || new Date().toISOString()
+        paymentDueDate: formData.paymentDueDate ? new Date(formData.paymentDueDate).toISOString() : undefined
       }
 
       await post('/api/v1/invoices', payload)
@@ -204,7 +206,7 @@ export default function CreateInvoice() {
                 onChange={handleChange}
               />
               <p className="mt-1 text-sm text-gray-500">
-                Leave empty to use current date and time
+                Leave empty to set the due date 24 hours from now
               </p>
             </div>
 

@@ -13,6 +13,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"github.com/nwenisoe/menu-management/config"
+	"github.com/nwenisoe/menu-management/controllers"
+	"github.com/nwenisoe/menu-management/database"
+	"github.com/nwenisoe/menu-management/helpers"
 	"github.com/nwenisoe/menu-management/middlewares"
 	"github.com/nwenisoe/menu-management/routes"
 	"github.com/nwenisoe/menu-management/utils"
@@ -39,43 +42,32 @@ func main() {
 	}
 	log := utils.GetLogger()
 
+	if err := helpers.InitializeJWT(); err != nil {
+		log.Fatal("Failed to configure authentication", zap.Error(err))
+	}
+	if err := database.Connect(context.Background()); err != nil {
+		log.Fatal("Failed to connect to MongoDB", zap.Error(err))
+	}
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := database.Client.Disconnect(ctx); err != nil {
+			log.Error("Failed to disconnect from MongoDB", zap.Error(err))
+		}
+	}()
+	helpers.InitializeCollections()
+	controllers.InitializeCollections()
+
 	port := config.GetEnvAsInt("PORT", 8080)
 	ginMode := config.GetEnv("GIN_MODE", "release")
 
 	gin.SetMode(ginMode)
-	router := gin.New()
-
-	router.Use(middlewares.ZapLoggerMiddleware(log))
-	router.Use(gin.Recovery())
-
-	// Apply CORS middleware to all routes with more permissive settings
-	router.Use(cors.New(cors.Config{
-		AllowAllOrigins:  true,
-		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "X-Requested-With"},
-		ExposeHeaders:    []string{"Content-Length", "Authorization"},
-		AllowCredentials: false, // Set to false when AllowAllOrigins is true
-		MaxAge:           12 * time.Hour,
-	}))
-
-	// Register all routes
-	routes.HealthRoutes(router)
-	routes.UserRoutes(router)
-	routes.InvoiceRoutes(router)
-
-	// Apply authentication middleware to protected routes
-	router.Use(middlewares.Authentication())
-
-	routes.MenuRoutes(router)
-	routes.FoodRoutes(router)
-	routes.TableRoutes(router)
-	routes.OrderRoutes(router)
-	routes.OrderItemRoutes(router)
-	routes.SalesReportRoutes(router)
+	router := newRouter(log)
 
 	server := &http.Server{
-		Addr:    fmt.Sprintf(":%d", port),
-		Handler: router,
+		Addr:              fmt.Sprintf(":%d", port),
+		Handler:           router,
+		ReadHeaderTimeout: 5 * time.Second,
 	}
 
 	quit := make(chan os.Signal, 1)
@@ -99,4 +91,39 @@ func main() {
 	}
 
 	log.Info("Server exited cleanly")
+}
+
+func newRouter(log *zap.Logger) *gin.Engine {
+	router := gin.New()
+	_ = router.SetTrustedProxies(nil)
+
+	router.Use(middlewares.ZapLoggerMiddleware(log))
+	router.Use(gin.Recovery())
+
+	// Apply CORS middleware to all routes with more permissive settings
+	router.Use(cors.New(cors.Config{
+		AllowAllOrigins:  true,
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "X-Requested-With"},
+		ExposeHeaders:    []string{"Content-Length", "Authorization"},
+		AllowCredentials: false, // Set to false when AllowAllOrigins is true
+		MaxAge:           12 * time.Hour,
+	}))
+
+	// Register all routes
+	routes.HealthRoutes(router)
+	routes.UserRoutes(router)
+
+	// Apply authentication middleware to protected routes
+	router.Use(middlewares.Authentication())
+
+	routes.InvoiceRoutes(router)
+	routes.MenuRoutes(router)
+	routes.FoodRoutes(router)
+	routes.TableRoutes(router)
+	routes.OrderRoutes(router)
+	routes.OrderItemRoutes(router)
+	routes.SalesReportRoutes(router)
+
+	return router
 }

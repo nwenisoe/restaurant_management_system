@@ -7,16 +7,14 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/nwenisoe/menu-management/database"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
 var (
-	userCollection      *mongo.Collection = database.OpenCollection(database.Client, "user")
-	foodCollection      *mongo.Collection = database.OpenCollection(database.Client, "food")
-	orderCollection     *mongo.Collection = database.OpenCollection(database.Client, "order")
-	orderItemCollection *mongo.Collection = database.OpenCollection(database.Client, "orderItem")
+	userCollection  *mongo.Collection
+	foodCollection  *mongo.Collection
+	orderCollection *mongo.Collection
 )
 
 func RecordExists(ctx context.Context, collection *mongo.Collection, field string, value interface{}) (bool, error) {

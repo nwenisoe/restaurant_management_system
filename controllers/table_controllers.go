@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/nwenisoe/menu-management/database"
 	"github.com/nwenisoe/menu-management/models"
 
 	"github.com/gin-gonic/gin"
@@ -15,7 +14,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-var tableCollection *mongo.Collection = database.OpenCollection(database.Client, "table")
+var tableCollection *mongo.Collection
 
 func CreateTable() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -60,7 +59,7 @@ func GetAllTables() gin.HandlerFunc {
 		}
 		defer cursor.Close(ctx)
 
-		var tables []models.Table
+		tables := []models.Table{}
 		if err := cursor.All(ctx, &tables); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error while parsing tables"})
 			return

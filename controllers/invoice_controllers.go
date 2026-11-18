@@ -2,13 +2,13 @@ package controllers
 
 import (
 	"context"
-	"fmt"
+	"errors"
+	"io"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/nwenisoe/menu-management/database"
 	helper "github.com/nwenisoe/menu-management/helpers"
 	"github.com/nwenisoe/menu-management/models"
 	"go.mongodb.org/mongo-driver/bson"
@@ -27,59 +27,10 @@ type InvoiceViewFormat struct {
 	OrderDetails   interface{}
 }
 
-var invoiceCollection *mongo.Collection = database.OpenCollection(database.Client, "invoice")
+var invoiceCollection *mongo.Collection
 
 func CreateInvoice() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
-		defer cancel()
-
-		var invoice models.Invoice
-
-		if err := c.BindJSON(&invoice); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input: " + err.Error()})
-			return
-		}
-
-		var order models.Order
-		err := orderCollection.FindOne(ctx, bson.M{"orderId": invoice.OrderID}).Decode(&order)
-		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Order not found"})
-			return
-		}
-
-		status := "PENDING"
-		if invoice.PaymentStatus == nil {
-			invoice.PaymentStatus = &status
-		}
-
-		now := time.Now().UTC()
-		invoice.PaymentDueDate = now.AddDate(0, 0, 1)
-		invoice.CreatedAt = now
-		invoice.UpdatedAt = now
-		invoice.ID = primitive.NewObjectID()
-		invoice.InvoiceID = invoice.ID.Hex()
-
-		if err := validate.Struct(invoice); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Validation failed: " + err.Error()})
-			return
-		}
-
-		_, err = invoiceCollection.InsertOne(ctx, invoice)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create invoice"})
-			return
-		}
-
-		var createdInvoice models.Invoice
-		err = invoiceCollection.FindOne(ctx, bson.M{"invoiceId": invoice.InvoiceID}).Decode(&createdInvoice)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve created invoice"})
-			return
-		}
-
-		c.JSON(http.StatusOK, gin.H{"message": "Invoice created successfully", "invoice": createdInvoice})
-	}
+	return createInvoice(false)
 }
 
 func GetAllInvoices() gin.HandlerFunc {
@@ -94,7 +45,7 @@ func GetAllInvoices() gin.HandlerFunc {
 			return
 		}
 
-		var allInvoices []models.Invoice
+		allInvoices := []models.Invoice{}
 		if err := cursor.All(ctx, &allInvoices); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse invoices"})
 			return
@@ -132,14 +83,17 @@ func GetInvoiceByID() gin.HandlerFunc {
 			return
 		}
 
-		var table models.Table
-		err = tableCollection.FindOne(ctx, bson.M{"tableId": order.TableID}).Decode(&table)
-		if err == mongo.ErrNoDocuments {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Table not found"})
-			return
-		} else if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve table"})
-			return
+		var tableNumber *int
+		if number, err := strconv.Atoi(invoice.TableNumber); err == nil {
+			tableNumber = &number
+		} else if tableID := helper.GetNonNilString(order.TableID, ""); tableID != "" {
+			var table models.Table
+			err := tableCollection.FindOne(ctx, bson.M{"tableId": tableID}).Decode(&table)
+			if err != nil && err != mongo.ErrNoDocuments {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve table"})
+				return
+			}
+			tableNumber = table.TableNumber
 		}
 
 		cursor, err := orderItemCollection.Find(ctx, bson.M{"orderId": invoice.OrderID})
@@ -149,14 +103,9 @@ func GetInvoiceByID() gin.HandlerFunc {
 		}
 		defer cursor.Close(ctx)
 
-		var orderItems []models.OrderItem
+		orderItems := []models.OrderItem{}
 		if err := cursor.All(ctx, &orderItems); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error while parsing order items for order"})
-			return
-		}
-
-		if len(orderItems) == 0 {
-			c.JSON(http.StatusNotFound, gin.H{"error": "No order items found for this invoice"})
 			return
 		}
 
@@ -166,7 +115,7 @@ func GetInvoiceByID() gin.HandlerFunc {
 			PaymentMethod:  helper.GetNonNilString(invoice.PaymentMethod, "null"),
 			InvoiceID:      invoice.InvoiceID,
 			PaymentStatus:  invoice.PaymentStatus,
-			TableNumber:    table.TableNumber,
+			TableNumber:    tableNumber,
 			OrderDetails:   orderItems,
 		}
 
@@ -176,142 +125,135 @@ func GetInvoiceByID() gin.HandlerFunc {
 
 // GenerateInvoiceFromOrder creates an invoice automatically from an order
 func GenerateInvoiceFromOrder() gin.HandlerFunc {
+	return createInvoice(true)
+}
+
+func createInvoice(fromOrderRoute bool) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
 		defer cancel()
 
-		orderID := c.Param("orderId")
-		if orderID == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Order ID is required"})
+		var request struct {
+			OrderID        string    `json:"orderId"`
+			PaymentMethod  *string   `json:"paymentMethod"`
+			PaymentStatus  *string   `json:"paymentStatus"`
+			PaymentDueDate time.Time `json:"paymentDueDate"`
+		}
+		if err := c.ShouldBindJSON(&request); err != nil && !(fromOrderRoute && errors.Is(err, io.EOF)) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid invoice input"})
+			return
+		}
+		message := "Invoice created successfully"
+		if fromOrderRoute {
+			request.OrderID = c.Param("orderId")
+			message = "Invoice generated successfully"
+		}
+
+		now := time.Now().UTC()
+		id := primitive.NewObjectID()
+		method, status := "CASH", "PENDING"
+		invoice := models.Invoice{
+			ID:             id,
+			InvoiceID:      id.Hex(),
+			OrderID:        request.OrderID,
+			PaymentMethod:  request.PaymentMethod,
+			PaymentStatus:  request.PaymentStatus,
+			PaymentDueDate: request.PaymentDueDate.UTC(),
+			CreatedAt:      now,
+			UpdatedAt:      now,
+			FoodItems:      []models.InvoiceFoodItem{},
+		}
+		if fromOrderRoute {
+			invoice.InvoiceID = "INV-" + id.Hex()
+		}
+		if invoice.PaymentMethod == nil {
+			invoice.PaymentMethod = &method
+		}
+		if invoice.PaymentStatus == nil {
+			invoice.PaymentStatus = &status
+		}
+		if invoice.PaymentDueDate.IsZero() {
+			invoice.PaymentDueDate = now.Add(24 * time.Hour)
+		}
+		if err := validate.Struct(invoice); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Validation failed: " + err.Error()})
 			return
 		}
 
-		// Parse request body for payment details
-		var request struct {
-			PaymentMethod string `json:"paymentMethod"`
-			PaymentStatus string `json:"paymentStatus"`
-		}
-
-		if err := c.BindJSON(&request); err != nil {
-			// If no body provided, use defaults
-			request.PaymentMethod = "CASH"
-			request.PaymentStatus = "PENDING"
-		}
-
-		// Get order details
 		var order models.Order
-		err := orderCollection.FindOne(ctx, bson.M{"orderId": orderID}).Decode(&order)
-		if err != nil {
+		err := orderCollection.FindOne(ctx, bson.M{"orderId": invoice.OrderID}).Decode(&order)
+		if err == mongo.ErrNoDocuments {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Order not found"})
 			return
 		}
-
-		// Get table details
-		var table models.Table
-		err = tableCollection.FindOne(ctx, bson.M{"tableId": order.TableID}).Decode(&table)
 		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Table not found"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load order"})
 			return
 		}
+		invoice.OrderDate = order.OrderDate
+		invoice.TableID = helper.GetNonNilString(order.TableID, "")
+		if invoice.TableID != "" {
+			var table models.Table
+			err := tableCollection.FindOne(ctx, bson.M{"tableId": invoice.TableID}).Decode(&table)
+			if err != nil && err != mongo.ErrNoDocuments {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load table"})
+				return
+			}
+			if table.TableNumber != nil {
+				invoice.TableNumber = strconv.Itoa(*table.TableNumber)
+			}
+		}
 
-		// Get order items for this order
-		cursor, err := orderItemCollection.Find(ctx, bson.M{"orderId": orderID})
+		cursor, err := orderItemCollection.Find(ctx, bson.M{"orderId": invoice.OrderID})
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get order items"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load order items"})
 			return
 		}
-		defer cursor.Close(ctx)
-
-		var orderItems []models.OrderItem
+		orderItems := []models.OrderItem{}
 		if err := cursor.All(ctx, &orderItems); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse order items"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read order items"})
 			return
 		}
-
-		// Get food details for each order item
-		var invoiceFoodItems []models.InvoiceFoodItem
-		var totalAmount float64 = 0
 
 		for _, item := range orderItems {
+			// Older orders may contain portion labels or omit the quantity.
+			quantity, err := strconv.Atoi(helper.GetNonNilString(item.Quantity, "1"))
+			if err != nil || quantity < 1 {
+				quantity = 1
+			}
+
+			foodID := helper.GetNonNilString(item.FoodID, "")
 			var food models.Food
-			err := foodCollection.FindOne(ctx, bson.M{"foodId": item.FoodID}).Decode(&food)
-			if err != nil {
-				continue // Skip if food not found
+			err = foodCollection.FindOne(ctx, bson.M{"foodId": foodID}).Decode(&food)
+			if err != nil && err != mongo.ErrNoDocuments {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load food details"})
+				return
+			}
+			price := item.UnitPrice
+			if price == nil {
+				price = food.Price
+			}
+			if price == nil {
+				c.JSON(http.StatusConflict, gin.H{"error": "An order item is missing its price"})
+				return
 			}
 
-			// Handle pointer types
-			var quantity int = 1
-			if item.Quantity != nil {
-				// Convert string quantity to int
-				if q, err := strconv.Atoi(*item.Quantity); err == nil {
-					quantity = q
-				}
-			}
-
-			// Calculate subtotal
-			var price float64 = 0
-			if food.Price != nil {
-				price = *food.Price
-			}
-
-			// Handle food name pointer
-			var foodName string = ""
-			if food.Name != nil {
-				foodName = *food.Name
-			}
-
-			subtotal := float64(quantity) * price
-			invoiceFoodItems = append(invoiceFoodItems, models.InvoiceFoodItem{
-				FoodID:   *item.FoodID,
-				FoodName: foodName,
+			subtotal := float64(quantity) * *price
+			invoice.FoodItems = append(invoice.FoodItems, models.InvoiceFoodItem{
+				FoodID:   foodID,
+				FoodName: helper.GetNonNilString(food.Name, ""),
 				Quantity: quantity,
-				Price:    price,
+				Price:    *price,
 				Subtotal: subtotal,
 			})
-			totalAmount += subtotal
+			invoice.TotalAmount += subtotal
 		}
 
-		orderIDSuffix := orderID
-		if len(orderIDSuffix) > 8 {
-			orderIDSuffix = orderIDSuffix[:8]
-		}
-		invoiceID := fmt.Sprintf("INV-%d-%s", time.Now().Unix(), orderIDSuffix)
-
-		// Set payment details
-		paymentDueDate := time.Now().Add(24 * time.Hour) // Due in 24 hours
-
-		tableNumber := ""
-		if table.TableNumber != nil {
-			tableNumber = strconv.Itoa(*table.TableNumber)
-		}
-
-		// Create invoice
-		invoice := models.Invoice{
-			ID:             primitive.NewObjectID(),
-			InvoiceID:      invoiceID,
-			OrderID:        orderID,
-			TableID:        helper.GetNonNilString(order.TableID, ""),
-			TableNumber:    tableNumber,
-			OrderDate:      order.OrderDate,
-			FoodItems:      invoiceFoodItems,
-			TotalAmount:    totalAmount,
-			PaymentMethod:  &request.PaymentMethod,
-			PaymentStatus:  &request.PaymentStatus,
-			PaymentDueDate: paymentDueDate,
-			CreatedAt:      time.Now(),
-			UpdatedAt:      time.Now(),
-		}
-
-		_, err = invoiceCollection.InsertOne(ctx, invoice)
-		if err != nil {
+		if _, err := invoiceCollection.InsertOne(ctx, invoice); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create invoice"})
 			return
 		}
-
-		c.JSON(http.StatusOK, gin.H{
-			"message": "Invoice generated successfully",
-			"invoice": invoice,
-		})
+		c.JSON(http.StatusOK, gin.H{"message": message, "invoice": invoice})
 	}
 }
 

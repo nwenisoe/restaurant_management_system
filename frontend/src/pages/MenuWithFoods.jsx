@@ -14,6 +14,7 @@ export default function MenuWithFoods() {
   const [searchTerm, setSearchTerm] = useState('')
   const [showCart, setShowCart] = useState(false)
   const [showCheckout, setShowCheckout] = useState(false)
+  const [checkingOut, setCheckingOut] = useState(false)
   const [selectedTable, setSelectedTable] = useState('')
   const [paymentMethod, setPaymentMethod] = useState('CASH')
   const [paymentStatus, setPaymentStatus] = useState('PAID')
@@ -150,66 +151,51 @@ export default function MenuWithFoods() {
   })
 
   const handleCheckout = async () => {
-    if (items.length === 0) return
+    if (checkingOut || items.length === 0) return
     if (!selectedTable) {
       alert('Please select a table')
       return
     }
 
+    setCheckingOut(true)
+    let orderId
     try {
-      const orderTime = new Date().toISOString()
-      
-      // Create order items using the existing CreateOrderItem endpoint
-      // This endpoint creates both the order and the order items
-      const orderItemsPayload = {
+      const order = await post('/api/v1/orderItems', {
         tableId: selectedTable,
         orderItems: items.map(item => ({
           foodId: item.foodId,
           quantity: item.quantity.toString()
         }))
-      }
-      
-      const orderItemsResponse = await post('/api/v1/orderItems', orderItemsPayload)
+      })
+      orderId = order.orderId
+      const { invoice } = await post(`/api/v1/orders/${orderId}/invoice`, {
+        paymentMethod,
+        paymentStatus
+      })
 
-      const orderId = orderItemsResponse.orderId
+      clearCart()
+      setShowCheckout(false)
+      const tableNumber = tables.find(t => t.tableId === selectedTable)?.tableNumber ?? selectedTable
+      setSuccessMessage(`Order placed and invoice ${invoice.invoiceId} generated.
 
+Table: ${tableNumber}
+Time: ${new Date(invoice.orderDate).toLocaleString()}
+Payment: ${invoice.paymentMethod}
+Status: ${invoice.paymentStatus}
+Total: $${invoice.totalAmount.toFixed(2)}`)
+      setShowSuccessModal(true)
+    } catch (err) {
       if (orderId) {
-        // Generate invoice with payment method and status
-        const invoicePayload = {
-          paymentMethod: paymentMethod,
-          paymentStatus: paymentStatus // Use the selected payment status
-        }
-        
-        const invoiceResponse = await post(`/api/v1/orders/${orderId}/invoice`, invoicePayload)
-
-        // Clear cart and show success
         clearCart()
         setShowCheckout(false)
-        
-        // Get selected table details for success message
-        const selectedTableDetails = tables.find(t => t.tableId === selectedTable)
-        const tableNumber = selectedTableDetails?.tableNumber || selectedTable
-        
-        // Set success message for modal
-        const invoiceId = invoiceResponse?.invoice?.invoiceId || 'new invoice'
-        const message = `Order Placed Successfully!
-
-Order Details:
-Table: ${tableNumber}
-Time: ${new Date(orderTime).toLocaleString()}
-Payment: ${paymentMethod}
-Status: ${paymentStatus}
-Total: $${getTotalAmount().toFixed(2)}
-
-Invoice ${invoiceId} generated successfully!
-
-View your invoice history in the Invoices section.`
-        setSuccessMessage(message)
-        setShowSuccessModal(true)
+        navigate(`/create/invoice?orderId=${encodeURIComponent(orderId)}`, {
+          state: { checkoutError: 'The order was placed, but invoice creation could not be confirmed.' }
+        })
+      } else {
+        alert(err.response?.data?.error || 'Failed to place order. Please try again.')
       }
-    } catch (err) {
-      console.error('Checkout error:', err)
-      alert('Failed to place order. Please try again.')
+    } finally {
+      setCheckingOut(false)
     }
   }
 
@@ -514,9 +500,10 @@ View your invoice history in the Invoices section.`
                   </button>
                   <button
                     onClick={handleCheckout}
+                    disabled={checkingOut}
                     className="flex-1 btn btn-primary"
                   >
-                    Place Order & Generate Invoice
+                    {checkingOut ? "Placing order…" : "Place Order & Generate Invoice"}
                   </button>
                 </div>
               </div>

@@ -1,0 +1,7 @@
+.git
+.env*
+**/.env*
+frontend
+outputs
+*.docx
+*.pptx

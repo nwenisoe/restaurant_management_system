@@ -2,6 +2,7 @@ package routes
 
 import (
 	"github.com/nwenisoe/menu-management/controllers"
+	"github.com/nwenisoe/menu-management/middlewares"
 
 	"github.com/gin-gonic/gin"
 )
@@ -13,6 +14,7 @@ func UserRoutes(router *gin.Engine) {
 		{
 			users.POST("/signup", controllers.SignUp())
 			users.POST("/login", controllers.Login())
+			users.Use(middlewares.Authentication())
 			users.GET("/:userId", controllers.GetUserByID())
 			users.GET("/", controllers.GetAllUsers())
 		}

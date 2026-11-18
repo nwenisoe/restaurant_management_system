@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/nwenisoe/menu-management/database"
 	"github.com/nwenisoe/menu-management/models"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -32,7 +31,7 @@ type DailySalesReport struct {
 	CreatedAt   time.Time          `json:"createdAt" bson:"createdAt"`
 }
 
-var salesReportCollection *mongo.Collection = database.OpenCollection(database.Client, "sales_report")
+var salesReportCollection *mongo.Collection
 
 // GenerateDailySalesReport generates a daily sales report
 func GenerateDailySalesReport() gin.HandlerFunc {
@@ -78,7 +77,7 @@ func GenerateDailySalesReport() gin.HandlerFunc {
 		}
 		defer cursor.Close(ctx)
 
-		var orders []models.Order
+		orders := []models.Order{}
 		if err := cursor.All(ctx, &orders); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse orders"})
 			return

@@ -14,14 +14,12 @@ services:
         condition: service_healthy
     ports:
       - "8080:8080"
-    volumes:
-      - .:/app:z
     env_file:
       - ./.envs/.server.env
     networks:
       - restaurant-management-network
     healthcheck:
-      test: [ "CMD", "/app/healthCheck.sh" ]
+      test: [ "CMD", "bash", "/app/healthCheck.sh" ]
       interval: 30s
       retries: 3
       start_period: 10s
@@ -40,7 +38,7 @@ services:
     networks:
       - restaurant-management-network
     healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      test: ["CMD", "mongosh", "localhost:27017/test", "--quiet", "--eval", "quit(db.runCommand({ping: 1}).ok ? 0 : 1)"]
       interval: 30s
       timeout: 10s
       retries: 5

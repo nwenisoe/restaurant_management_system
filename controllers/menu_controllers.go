@@ -6,8 +6,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/nwenisoe/menu-management/database"
-	helper "github.com/nwenisoe/menu-management/helpers"
 	"github.com/nwenisoe/menu-management/models"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -15,7 +13,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-var menuCollection *mongo.Collection = database.OpenCollection(database.Client, "menu")
+var menuCollection *mongo.Collection
 
 func CreateMenu() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -66,7 +64,7 @@ func GetAllMenus() gin.HandlerFunc {
 		}
 		defer cursor.Close(ctx)
 
-		var menus []models.Menu
+		menus := []models.Menu{}
 		if err := cursor.All(ctx, &menus); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error while parsing menu items"})
 			return
@@ -116,7 +114,7 @@ func UpdateMenuByID() gin.HandlerFunc {
 		}
 
 		var menu models.Menu
-		if err := c.BindJSON(&menu); err != nil {
+		if err := c.ShouldBindJSON(&menu); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON payload"})
 			return
 		}
@@ -124,7 +122,7 @@ func UpdateMenuByID() gin.HandlerFunc {
 		var updateObj primitive.D
 
 		if menu.StartDate != nil && menu.EndDate != nil {
-			if !helper.InTimeSpan(*menu.StartDate, *menu.EndDate, time.Now().UTC()) {
+			if menu.StartDate.After(*menu.EndDate) {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "Start date must be before end date"})
 				return
 			}
@@ -145,20 +143,18 @@ func UpdateMenuByID() gin.HandlerFunc {
 		}
 
 		menu.UpdatedAt = time.Now().UTC()
-		updateObj = append(updateObj, bson.E{Key: "updated_at", Value: menu.UpdatedAt})
+		updateObj = append(updateObj, bson.E{Key: "updatedAt", Value: menu.UpdatedAt})
 
 		filter := bson.M{"menuId": menuId}
-		opts := options.Update().SetUpsert(true)
-
-		_, err := menuCollection.UpdateOne(ctx, filter, bson.D{{Key: "$set", Value: updateObj}}, opts)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update menu"})
+		opts := options.FindOneAndUpdate().SetReturnDocument(options.After)
+		var updatedMenu models.Menu
+		err := menuCollection.FindOneAndUpdate(ctx, filter, bson.D{{Key: "$set", Value: updateObj}}, opts).Decode(&updatedMenu)
+		if err == mongo.ErrNoDocuments {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Menu not found"})
 			return
 		}
-
-		var updatedMenu models.Menu
-		if err := menuCollection.FindOne(ctx, filter).Decode(&updatedMenu); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve updated menu"})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update menu"})
 			return
 		}
 

@@ -5,63 +5,33 @@ import (
 	"time"
 
 	"github.com/nwenisoe/menu-management/config"
-	"github.com/nwenisoe/menu-management/utils"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"go.uber.org/zap"
 )
 
-func DBinstance() *mongo.Client {
-	log := utils.GetLogger()
+var Client *mongo.Client
+var db *mongo.Database
 
-	mongoURI := config.GetEnv("MONGODB_URI", "mongodb://root:example@localhost:27017/restaurant?authSource=admin")
-	connectTimeout := config.GetEnvAsInt("MONGODB_CONNECT_TIMEOUT", 10)
-
-	log.Info("Connecting to MongoDB",
-		zap.String("uri", mongoURI),
-		zap.Int("timeout", connectTimeout))
-
-	clientOptions := options.Client().ApplyURI(mongoURI)
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(connectTimeout)*time.Second)
+func Connect(ctx context.Context) error {
+	uri := config.GetEnv("MONGODB_URI", "mongodb://root:example@localhost:27017/restaurant?authSource=admin")
+	timeout := config.GetEnvAsInt("MONGODB_CONNECT_TIMEOUT", 10)
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeout)*time.Second)
 	defer cancel()
-
-	client, err := mongo.Connect(ctx, clientOptions)
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri))
 	if err != nil {
-		log.Error("Error connecting to MongoDB", zap.Error(err))
-		return nil
+		return err
 	}
-
-	err = client.Ping(ctx, nil)
-	if err != nil {
-		log.Error("MongoDB ping failed", zap.Error(err))
-		return nil
+	if err := client.Ping(ctx, nil); err != nil {
+		cleanup, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = client.Disconnect(cleanup)
+		return err
 	}
-
-	log.Info("Successfully connected to MongoDB")
-	return client
+	Client = client
+	db = client.Database(config.GetEnv("MONGODB_DATABASE", "restaurant"))
+	return nil
 }
 
-var Client *mongo.Client = DBinstance()
-
-func OpenCollection(client *mongo.Client, collectionName string) *mongo.Collection {
-	log := utils.GetLogger()
-
-	databaseName := config.GetEnv("MONGODB_DATABASE", "restaurant")
-	log.Info("Opening MongoDB collection",
-		zap.String("database", databaseName),
-		zap.String("collection", collectionName))
-
-	if client == nil {
-		log.Fatal("MongoDB client is nil. Ensure MongoDB is running and MONGODB_URI is correct (e.g., mongodb://localhost:27017)")
-		return nil
-	}
-
-	collection := client.Database(databaseName).Collection(collectionName)
-	if collection == nil {
-		log.Error("Failed to open MongoDB collection", zap.String("collection", collectionName))
-		return nil
-	}
-
-	return collection
+func OpenCollection(name string) *mongo.Collection {
+	return db.Collection(name)
 }

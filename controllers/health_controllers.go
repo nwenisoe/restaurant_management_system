@@ -16,7 +16,7 @@ func GetRouterHealth(c *gin.Context) {
 }
 
 func GetDatabaseHealth(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
 
 	dbClient := database.Client
@@ -30,7 +30,6 @@ func GetDatabaseHealth(c *gin.Context) {
 	if err := dbClient.Ping(ctx, nil); err != nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{
 			"status": "Database unreachable",
-			"error":  err.Error(),
 		})
 		return
 	}

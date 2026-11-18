@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/nwenisoe/menu-management/database"
 	"github.com/nwenisoe/menu-management/models"
 
 	"github.com/gin-gonic/gin"
@@ -15,7 +14,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-var orderCollection *mongo.Collection = database.OpenCollection(database.Client, "order")
+var orderCollection *mongo.Collection
 
 func CreateOrder() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -73,7 +72,7 @@ func GetAllOrders() gin.HandlerFunc {
 		}
 		defer cursor.Close(ctx)
 
-		var orders []models.Order
+		orders := []models.Order{}
 		if err := cursor.All(ctx, &orders); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error while parsing orders"})
 			return

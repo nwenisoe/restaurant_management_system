@@ -51,8 +51,8 @@ Invoice { ID, OrderID, PaymentMethod, PaymentStatus, PaymentDueDate }
 ## 🛠️ Installation & Setup
 
 ### **Prerequisites**
-- Go 1.19+
-- Node.js 16+
+- Go 1.25.5+
+- Node.js 18+
 - MongoDB 4.4+
 - Git
 
@@ -67,7 +67,7 @@ go mod download
 
 # Set environment variables
 export JWT_SECRET="your-secret-key"
-export MONGO_URI="mongodb://localhost:27017/restaurant"
+export MONGODB_URI="mongodb://localhost:27017/restaurant"
 
 # Run the backend
 go run main.go
@@ -162,10 +162,12 @@ mongod --dbpath /path/to/your/db
 ## 🔧 Configuration
 
 ### **Environment Variables**
+
+Set a private `JWT_SECRET` before starting the backend. Invoice and user lookup endpoints require an access token in the `Authorization: Bearer <token>` header.
 ```bash
 # Backend Configuration
 JWT_SECRET="your-jwt-secret-key"
-MONGO_URI="mongodb://localhost:27017/restaurant"
+MONGODB_URI="mongodb://localhost:27017/restaurant"
 GIN_MODE="release"  # or "debug" for development
 PORT="8080"
 
@@ -186,28 +188,26 @@ mongodb://username:password@localhost:27017/restaurant?authSource=admin
 # Run all tests
 go test ./...
 
-# Run specific test
-go test ./controllers
+# Run route authentication regression tests
+go test -run TestRouteAuthentication .
 
 # Run with coverage
 go test -cover ./...
 ```
 
-### **Frontend Tests**
+### **Frontend Build**
 ```bash
-# Install testing dependencies
-npm install --save-dev @testing-library/react @testing-library/jest-dom
-
-# Run tests
-npm test
-
-# Run tests with coverage
-npm run test:coverage
+cd frontend
+npm ci
+npm run build
 ```
 
 ## 🚀 Deployment
 
 ### **Docker Deployment**
+
+Create `.envs/.mongo.env` with `MONGO_INITDB_ROOT_USERNAME` and `MONGO_INITDB_ROOT_PASSWORD`. Create `.envs/.server.env` with `JWT_SECRET` and a matching `MONGODB_URI` using `mongo` as the hostname, for example `mongodb://username:password@mongo:27017/restaurant?authSource=admin`.
+
 ```bash
 # Build and run with Docker Compose
 docker-compose up -d
